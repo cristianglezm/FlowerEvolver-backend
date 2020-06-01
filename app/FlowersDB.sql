@@ -1,0 +1,23 @@
+
+
+CREATE TABLE 'flower' ( 
+	`ID` INTEGER NOT NULL unique, 
+	`Genome` char(255),
+	`Image` char(255),
+	PRIMARY KEY('ID')
+);
+CREATE TABLE 'ancestor' (
+	`ID` INTEGER NOT NULL UNIQUE, 
+	`Father` INTEGER NOT NULL, 
+	`Mother` INTEGER NOT NULL, 
+	PRIMARY KEY(`ID`),
+	FOREIGN KEY('ID') REFERENCES Flowers(ID),
+	FOREIGN KEY('Father') REFERENCES Flowers(ID),
+	FOREIGN KEY('Mother') REFERENCES Flowers(ID)
+);
+CREATE TABLE `mutation` ( 
+	`ID` INTEGER NOT NULL UNIQUE, 
+	`Original` INTEGER NOT NULL, 
+	PRIMARY KEY(`ID`), 
+	FOREIGN KEY('ID') REFERENCES Flowers(ID)
+);
