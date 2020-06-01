@@ -1,6 +1,6 @@
 # Flower Evolver Backend #
 
-Flower Evolver backend, frontend can be found (here)[https://github.com/cristianglezm/FlowerEvolver-frontend]
+Flower Evolver backend, frontend can be found [here](https://github.com/cristianglezm/FlowerEvolver-frontend)
 
 ## Running ##
 
@@ -16,14 +16,16 @@ Flower Evolver backend, frontend can be found (here)[https://github.com/cristian
 
 ## Routes and Responses ##
 
-    * /api/flowers
+* /api/flowers
+create a new flower sending a empty POST, GET will get you:
 ```javascript
     {
         count: Number
         flowers:[{ id: Number, genome:String, image:String}, ...],
     }
 ```
-    * /api/flowers/:id
+* /api/flowers/:id
+GET
 ```javascript
     {
         id: Number, 
@@ -31,35 +33,51 @@ Flower Evolver backend, frontend can be found (here)[https://github.com/cristian
         image:String
     }
 ```
-    * /api/mutations
+* /api/mutations
+POST send
+```javascript
+   {original:Number}
+```
+GET
 ```javascript
     {
         count: Number,
         mutations[{id: Number, original: Number}, ...]
     }
 ```
-    * /api/mutations/:original
+* /api/mutations/:original
+GET
 ```javascript
     {[
         {id: Number, genome: String, image: String},
         ...
     ]}
 ```
-    * /api/ancestors
+* /api/ancestors
+POST send
+```javascript
+   {
+      father: Number,
+      mother: Number
+   }
+```
+GET
 ```javascript
     {
         count: Number,
         ancestors:[{id:Number, father: Number, mother: Number}, ...]
     }
 ```
-    * /api/ancestors/:father
+* /api/ancestors/:father
+GET
 ```javascript
     {[
         {id: Number, genome: String, image: String},
         ...
     ]}
 ```
-    * /api/ancestors/:father/:mother
+* /api/ancestors/:father/:mother
+GET
 ```javascript
     {[
         {id: Number, genome: String, image: String},
