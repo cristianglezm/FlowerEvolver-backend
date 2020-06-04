@@ -26,18 +26,18 @@ class Params:
 def makeFlower(id, folder, params = Params()):
     command = "{} -cli -n 1 -l {} -r {} -p {} -b {} -sf {}.json  -si {}.png".format(str(getFlowerEvolverExe()), params.layers, params.radius, params.p, params.bias,\
                 str(os.path.join(str(folder), str(id))),str(os.path.join(str(folder), str(id))))
-    process = subprocess.run(command)
-    return process
+    process = subprocess.Popen(command, shell=True)
+    return process.communicate()
 
 def mutateFlower(original, id, folder, params = Params()):
     command = "{} -cli -lf {}.json -l {} -r {} -p {} -b {} -m 1 -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()), str(os.path.join(str(folder), str(original))),\
                 params.layers, params.radius, params.p, params.bias, str(os.path.join(str(folder), str(id))), str(os.path.join(str(folder), str(id))))
-    process = subprocess.run(command)
-    return process
+    process = subprocess.Popen(command, shell=True)
+    return process.communicate()
 
 def reproduce(father, mother, child, folder, params = Params()):
     command = "{} -cli -repr {}.json {}.json -l {} -r {} -p {} -b {} -m 1 -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()),\
                 str(os.path.join(str(folder), str(father))), str(os.path.join(str(folder), str(mother))), params.layers, params.radius, params.p,\
                 params.bias,str(os.path.join(str(folder), str(child))), str(os.path.join(str(folder), str(child))))
-    process = subprocess.run(command)
+    process = subprocess.Popen(command, shell=True)
     return process.communicate()

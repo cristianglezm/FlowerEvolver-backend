@@ -86,7 +86,6 @@ class AncestorResource(Resource):
         if father and mother:
             args.pop('limit', None)
             args.pop('offset', None)
-            
             res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
                     .filter(Ancestor.father == father)\
                     .filter(and_(Ancestor.mother == mother)).order_by(Flower.id.desc())
@@ -182,7 +181,7 @@ class MutationResource(Resource):
             if limit:
                 res = res.limit(limit)
             if offset:
-                res = res.offset(offset)            
+                res = res.offset(offset)
             res = res.all()
             if res:
                 return marshal(res, flower_fields)
