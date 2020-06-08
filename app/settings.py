@@ -1,5 +1,0 @@
-SQLALCHEMY_DATABASE_URI = 'sqlite:///FlowerEvolver.db'
-SQLALCHEMY_TRACK_MODIFICATIONS = False
-GENERATED_FOLDER = './generated/'
-BUNDLE_ERRORS = True
-SECRET_KEY = ''

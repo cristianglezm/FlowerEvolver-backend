@@ -4,28 +4,37 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 
 ## Running ##
 
-    * clone repository
+    * git clone https://github.com/crisitanglezm/FlowerEvolver-backend
+    * cd FlowerEvolver-backend
     * pip install requirements.txt
-    * configure SECRET_KEY inside app/settings.py [default ""]
-    * configure origins inside singleton.py [default *]
+    * configure SECRET_KEY Variable [default '']
+        * export SECRET_KEY=value
+    * configure ORIGINS Variable [default *]
+        * export ORIGINS=value
+    * configure ENV Variable with 'production' for production or 'development' for development
+        * export ENV=value
     * Run following commands:
         * python manage.py db init
         * python manage.py db migrate
         * python manage.py db upgrade
-        * python app.py
+        * python wsgi.py
 
 ## Routes and Responses ##
 
 * /api/flowers
-create a new flower sending a empty POST, GET will get you:
+
+    create a new flower sending a empty POST, GET will get you:
+
 ```javascript
     {
-        count: Number
+        count: Number,
         flowers:[{ id: Number, genome:String, image:String}, ...],
     }
 ```
 * /api/flowers/:id
-GET
+
+    GET
+
 ```javascript
     {
         id: Number, 
@@ -34,11 +43,14 @@ GET
     }
 ```
 * /api/mutations
-POST send
+
+    POST send
+
 ```javascript
    {original:Number}
 ```
-GET
+    GET
+
 ```javascript
     {
         count: Number,
@@ -46,7 +58,9 @@ GET
     }
 ```
 * /api/mutations/:original
-GET
+
+    GET
+
 ```javascript
     {[
         {id: Number, genome: String, image: String},
@@ -54,14 +68,17 @@ GET
     ]}
 ```
 * /api/ancestors
-POST send
+
+    POST send
+
 ```javascript
    {
       father: Number,
       mother: Number
    }
 ```
-GET
+    GET
+
 ```javascript
     {
         count: Number,
@@ -69,7 +86,9 @@ GET
     }
 ```
 * /api/ancestors/:father
-GET
+
+    GET
+
 ```javascript
     {[
         {id: Number, genome: String, image: String},
@@ -77,7 +96,9 @@ GET
     ]}
 ```
 * /api/ancestors/:father/:mother
-GET
+
+    GET
+
 ```javascript
     {[
         {id: Number, genome: String, image: String},

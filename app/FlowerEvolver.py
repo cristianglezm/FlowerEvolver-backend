@@ -7,7 +7,7 @@ def getFlowerEvolverExe():
     if os.name == 'nt':
         exe += ".exe"
 
-    path = Path("../bin/{}".format(exe))
+    path = Path("bin/{}".format(exe))
     return path.resolve()
 
 class Params:
@@ -24,7 +24,7 @@ class Params:
         return "layers: {}, radius: {}, p: {}, bias: {}".format(self.layers, self.radius, self.p, self.bias)
 
 def makeFlower(id, folder, params = Params()):
-    command = "{} -cli -n 1 -l {} -r {} -p {} -b {} -sf {}.json  -si {}.png".format(str(getFlowerEvolverExe()), params.layers, params.radius, params.p, params.bias,\
+    command = "{} -cli -n 1 -l {} -r {} -p {} -b {} -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()), params.layers, params.radius, params.p, params.bias,\
                 str(os.path.join(str(folder), str(id))),str(os.path.join(str(folder), str(id))))
     process = subprocess.Popen(command, shell=True)
     return process.communicate()

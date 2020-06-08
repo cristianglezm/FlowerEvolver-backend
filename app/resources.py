@@ -1,10 +1,12 @@
 from flask_restful import Resource, reqparse, request
 from flask_restful import fields, marshal_with, marshal
-from models import Flower, Ancestor, Mutation
-from sqlalchemy import and_, or_
-from singleton import db, app
-from FlowerEvolver import *
+from flask import current_app
+from app.models import Flower, Ancestor, Mutation
+from app.FlowerEvolver import *
+from . import db
+
 from pathlib import Path
+from sqlalchemy import and_, or_
 
 flower_fields = {
     'id': fields.Integer,
@@ -53,7 +55,7 @@ class FlowerResource(Resource):
         flower = Flower(**args)
         db.session.add(flower)
         db.session.commit()
-        path = Path(app.config['GENERATED_FOLDER'])
+        path = Path(current_app.config['GENERATED_FOLDER'])
         makeFlower(flower.id, path.resolve())
         flower.genome = str(str(flower.id) + '.json')
         flower.image = str(str(flower.id) + '.png')
@@ -116,7 +118,7 @@ class AncestorResource(Resource):
             if res:
                 return marshal(res, flower_fields)
             else:
-                return "Flower by father id {} not found".format(str(father)), 404
+                return "Flower by father or mother id {} not found".format(str(father)), 404
         else:
             args.pop('limit', None)
             args.pop('offset', None)
@@ -138,8 +140,8 @@ class AncestorResource(Resource):
     def post(self):
         args = ancestor_post_parser.parse_args()
         ancestor = Ancestor(**args)
-        if Path("{}/{}.json".format(app.config['GENERATED_FOLDER'], str(ancestor.father))).exists() and \
-                Path("{}/{}.json".format(app.config['GENERATED_FOLDER'], str(ancestor.mother))).exists():
+        if Path("{}/{}.json".format(current_app.config['GENERATED_FOLDER'], str(ancestor.father))).exists() and \
+                Path("{}/{}.json".format(current_app.config['GENERATED_FOLDER'], str(ancestor.mother))).exists():
             flower = Flower()
             db.session.add(flower)
             db.session.commit()
@@ -148,7 +150,7 @@ class AncestorResource(Resource):
             db.session.add(flower)
             db.session.commit()
             ancestor.id = flower.id
-            path = Path(app.config['GENERATED_FOLDER'])
+            path = Path(current_app.config['GENERATED_FOLDER'])
             reproduce(ancestor.father,ancestor.mother,ancestor.id, path.resolve())
             db.session.add(ancestor)
             db.session.commit()
@@ -208,7 +210,7 @@ class MutationResource(Resource):
     def post(self):
         args = mutation_post_parser.parse_args()
         mutation = Mutation(**args)
-        if Path("{}/{}.json".format(app.config['GENERATED_FOLDER'], str(mutation.original))).exists():
+        if Path("{}/{}.json".format(current_app.config['GENERATED_FOLDER'], str(mutation.original))).exists():
             flower = Flower()
             db.session.add(flower)
             db.session.commit()
@@ -217,7 +219,7 @@ class MutationResource(Resource):
             db.session.add(flower)
             db.session.commit()
             mutation.id = flower.id
-            path = Path(app.config['GENERATED_FOLDER'])
+            path = Path(current_app.config['GENERATED_FOLDER'])
             mutateFlower(mutation.original, flower.id, path.resolve())
             db.session.add(mutation)
             db.session.commit()
