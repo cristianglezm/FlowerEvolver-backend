@@ -4,7 +4,7 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 
 ## Running ##
 
-    * git clone https://github.com/crisitanglezm/FlowerEvolver-backend
+    * git clone https://github.com/cristianglezm/FlowerEvolver-backend
     * cd FlowerEvolver-backend
     * pip install requirements.txt
     * configure SECRET_KEY Variable [default '']
