@@ -11,6 +11,9 @@ class ProductionConfig(Config):
     DEBUG = False
     ENV = 'production'
     @property
+    def SQLALCHEMY_DATABASE_URI():
+        return "mysql://{}:{}@{}/flowers".format(os.getenv("USER"), os.getenv("PASSWD"), os.getenv("HOST"))
+    @property
     def SECRET_KEY():
         SECRET_KEY = os.environ.get("SECRET_KEY")
         if not SECRET_KEY:
