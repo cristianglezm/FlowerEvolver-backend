@@ -1,7 +1,10 @@
 from flask_script import Manager
 from flask_migrate import Migrate, MigrateCommand
+import os
+from dotenv import load_dotenv
 from app import create_app, db
 
+load_dotenv('.env')
 app = create_app()
 
 migrate = Migrate(app, db)

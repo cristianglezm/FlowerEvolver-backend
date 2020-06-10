@@ -7,21 +7,24 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
 * pip install requirements.txt
-* configure SECRET_KEY Variable [default '']
-    * export SECRET_KEY=value
-* configure ORIGINS Variable [default *]
-    * export ORIGINS=value
-* configure HOST, USER, PASSWD for MySQL database
-    * export HOST=value
-    * export USER=value
-    * export PASSWD=value
-* configure ENV Variable with 'production' for production or 'development' for development
-    * export ENV=value
+* change .env as needed
+
+```
+HOST=localhost
+DB=flowerevolver
+PASSWD='passwd'
+USER=user
+ENV=production | development
+ORIGINS=*
+SECRET_KEY='notreallyneeded'
+LD_LIBRARY_PATH=/full/path/to/FlowerEvolver-backend/bin:$LD_LIBRARY_PATH
+```
+
 * Run following commands:
-    * python manage.py db init
-    * python manage.py db migrate
-    * python manage.py db upgrade
-    * python wsgi.py
+    - python manage.py db init
+    - python manage.py db migrate
+    - python manage.py db upgrade
+    - python wsgi.py
 
 ## Routes and Responses ##
 
