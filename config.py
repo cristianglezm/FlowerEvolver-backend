@@ -13,6 +13,8 @@ class ProductionConfig(Config):
     DEBUG = False
     ENV = 'production'
     SQLALCHEMY_DATABASE_URI = "mysql://{}:{}@{}/{}".format(os.getenv("USER"), os.getenv("PASSWD"), os.getenv("HOST"), os.getenv("DB"))
+    SQLALCHEMY_POOL_RECYCLE = 299
+    SQLALCHEMY_POOL_TIMEOUT = 20
     @property
     def SECRET_KEY():
         SECRET_KEY = os.environ.get("SECRET_KEY")
