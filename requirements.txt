@@ -2,7 +2,7 @@ alembic==0.9.7
 pathlib==1.0.1
 aniso8601==2.0.0
 click==6.7
-Flask==0.12.2
+Flask==1.0
 Flask-Cors==3.0.8
 Flask-Migrate==2.1.1
 Flask-RESTful==0.3.6
