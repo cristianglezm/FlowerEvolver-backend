@@ -36,7 +36,7 @@ def mutateFlower(original, id, folder, params = Params()):
     return process.communicate()
 
 def reproduce(father, mother, child, folder, params = Params()):
-    command = "{} -cli -repr {}.json {}.json -l {} -r {} -p {} -b {} -m 1 -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()),\
+    command = "{} -cli -repr {}.json {}.json -l {} -r {} -p {} -b {} -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()),\
                 str(os.path.join(str(folder), str(father))), str(os.path.join(str(folder), str(mother))), params.layers, params.radius, params.p,\
                 params.bias,str(os.path.join(str(folder), str(child))), str(os.path.join(str(folder), str(child))))
     process = subprocess.Popen(command, shell=True)
