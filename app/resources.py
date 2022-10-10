@@ -1,6 +1,7 @@
 from flask_restful import Resource, reqparse, request
 from flask_restful import fields, marshal_with, marshal
 from flask import current_app
+from flask_cors import cross_origin
 from app.models import Flower, Ancestor, Mutation
 from app.FlowerEvolver import *
 from . import db
@@ -21,6 +22,7 @@ flower_list_fields = {
 flower_post_parser = reqparse.RequestParser()
 
 class FlowerResource(Resource):
+    @cross_origin()
     def get(self, flower_id=None):
         if flower_id:
             flower = Flower.query.filter_by(id=flower_id).first()
@@ -49,7 +51,7 @@ class FlowerResource(Resource):
                 'count': len(flower),
                 'flowers': [marshal(f, flower_fields) for f in flower]
             }, flower_list_fields)
-
+    @cross_origin()
     def post(self):
         args = flower_post_parser.parse_args()
         flower = Flower(**args)
@@ -81,6 +83,7 @@ ancestor_post_parser.add_argument('mother', type=int, required=True, location=['
 
 
 class AncestorResource(Resource):
+    @cross_origin()
     def get(self, father=None, mother=None):
         args = request.args.to_dict()
         limit = args.get('limit', 0)
@@ -136,7 +139,7 @@ class AncestorResource(Resource):
                 'count': len(ancestor),
                 'ancestors': [marshal(a, ancestor_fields) for a in ancestor]
             }, ancestor_list_fields)
-
+    @cross_origin()
     def post(self):
         args = ancestor_post_parser.parse_args()
         ancestor = Ancestor(**args)
@@ -173,6 +176,7 @@ mutation_post_parser = reqparse.RequestParser()
 mutation_post_parser.add_argument('original', type=int, required=True, location=['json'], help='original parameter is required')
 
 class MutationResource(Resource):
+    @cross_origin()
     def get(self, mutation_original=None):
         args = request.args.to_dict()
         limit = args.get('limit', 0)
@@ -206,7 +210,7 @@ class MutationResource(Resource):
                 'count': len(mutation),
                 'mutations': [marshal(m, mutation_fields) for m in mutation]
             }, mutations_list_fields)
-
+    @cross_origin()
     def post(self):
         args = mutation_post_parser.parse_args()
         mutation = Mutation(**args)

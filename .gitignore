@@ -8,3 +8,4 @@ __pycache__
 *.db
 ctags.tmp
 migrations
+instance

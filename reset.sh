@@ -6,7 +6,7 @@ then
 fi
 rm generated/*.png generated/*.json
 echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
-python manager.py db init
-python manager.py db migrate
-python manager.py db upgrade
-
+export FLASK_APP=FlowerEvolver.py
+flask db init
+flask db migrate
+flask db upgrade

@@ -1,16 +1,15 @@
-from flask_script import Manager
-from flask_migrate import Migrate, MigrateCommand
 import os
+from flask.cli import FlaskGroup
+from flask_migrate import Migrate
 from dotenv import load_dotenv
 from app import create_app, db
 
 load_dotenv('.env')
 app = create_app()
 
+cli = FlaskGroup(app)
 migrate = Migrate(app, db)
-
-manager = Manager(app)
-manager.add_command('db', MigrateCommand)
+migrate.init_app(app)
 
 if __name__ == '__main__':
-    manager.run()
+    cli()

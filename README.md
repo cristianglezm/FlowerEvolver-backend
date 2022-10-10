@@ -6,7 +6,7 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
-* pip install requirements.txt
+* pip install -r requirements.txt
 * change .env as needed
 
 ```
@@ -21,10 +21,11 @@ LD_LIBRARY_PATH=/full/path/to/FlowerEvolver-backend/bin:$LD_LIBRARY_PATH
 ```
 
 * Run following commands:
-    - python manage.py db init
-    - python manage.py db migrate
-    - python manage.py db upgrade
-    - python wsgi.py
+    - export FLASK_APP=FlowerEvolver.py
+    - flask db init
+    - flask db migrate
+    - flask db upgrade
+    - flask run
 
 ## Routes and Responses ##
 
