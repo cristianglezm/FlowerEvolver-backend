@@ -1,0 +1,18 @@
+FROM ubuntu:20.04 as backend
+RUN addgroup --system fe && \
+    adduser --disabled-login --no-create-home --system fe --ingroup fe
+COPY --chown=fe . /app
+WORKDIR /app
+RUN chmod +x bin/* && \
+    apt-get update -y
+ENV TZ="Europe/Madrid"
+RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y python3 libc6 pip libsfml-dev mysql-client python-dev libmysqlclient-dev && \
+    pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir gunicorn
+USER fe
+# db is for dev mode only.
+VOLUME /app/generated /app/migrations /app/db
+ENV FLASK_APP=FlowerEvolver.py
+RUN sh reset.sh
+EXPOSE 5000/tcp
+ENTRYPOINT ["./entrypoint.sh"]

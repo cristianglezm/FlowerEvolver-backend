@@ -4,7 +4,7 @@ class Config(object):
     ENV = 'development'
     DEBUG = True
     BUNDLE_ERRORS = True
-    SQLALCHEMY_DATABASE_URI = 'sqlite:///../FlowerEvolver.db'
+    SQLALCHEMY_DATABASE_URI = 'sqlite:///../db/FlowerEvolver.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     GENERATED_FOLDER = 'generated/'
     #SECRET_KEY = ''

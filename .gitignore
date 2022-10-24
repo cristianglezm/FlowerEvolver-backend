@@ -9,3 +9,4 @@ __pycache__
 ctags.tmp
 migrations
 instance
+tmp

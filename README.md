@@ -2,12 +2,12 @@
 
 Flower Evolver backend, frontend can be found [here](https://github.com/cristianglezm/FlowerEvolver-frontend)
 
-## Running ##
+## Running local ##
 
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
 * pip install -r requirements.txt
-* change .env as needed
+* change .env as needed (use the absolute path for LD_LIBRARY_PATH)
 
 ```
 HOST=localhost
@@ -17,7 +17,7 @@ USER=user
 ENV=production | development
 ORIGINS=*
 SECRET_KEY='notreallyneeded'
-LD_LIBRARY_PATH=/full/path/to/FlowerEvolver-backend/bin:$LD_LIBRARY_PATH
+LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
 ```
 
 * Run following commands:
@@ -26,6 +26,20 @@ LD_LIBRARY_PATH=/full/path/to/FlowerEvolver-backend/bin:$LD_LIBRARY_PATH
     - flask db migrate
     - flask db upgrade
     - flask run
+
+## Running docker ##
+
+The Alpine version needs to download some repositories(private for now) to build the executables,
+the Ubuntu version has them inside the bin folder with the Windows executables.
+
+Before running the script to build the image, change the .env variables if you need to.
+* build image (alpine or ubuntu)
+    * sh build_docker.sh "alpine"
+    * sh build_docker.sh "ubuntu"
+* pull image (alpine(300MB) or ubuntu(800MB))
+    * docker pull cristianglezm/fe:backend-alpine-dev
+    * docker pull cristianglezm/fe:backend-ubuntu-dev
+* docker run -dp 5000:5000 -v generated:/app/generated -v migrations:/app/migrations -v db:/app/db cristianglezm/fe:backend-alpine-dev
 
 ## Routes and Responses ##
 

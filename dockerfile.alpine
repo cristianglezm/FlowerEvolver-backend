@@ -1,0 +1,48 @@
+# syntax=docker/dockerfile:1
+
+FROM python:3.10-alpine3.16 as builder
+WORKDIR /app
+RUN apk add --update --no-cache gcc musl-dev libstdc++ xorg-server-dev freeglut-dev libgudev-dev libx11-dev xrandr libxrandr-dev libxcb-dev sfml-dev libc6-compat gcompat \
+              build-base abuild binutils binutils git cmake extra-cmake-modules
+ENV CIP=/app/build
+ENV BIN=/app/bin
+COPY ./tmp /app/tmp
+RUN cd tmp/JsonBox && mkdir build && cd build && \ 
+ cmake -DCMAKE_INSTALL_PREFIX="$CIP/JsonBox" -DCMAKE_CXX_FLAGS=-fPIC .. && \
+ make -j4 install && cd /app && \
+ cd tmp/SPPAR && mkdir build && \ 
+ cd build && cmake -DCMAKE_INSTALL_PREFIX="$CIP/SPPAR" .. && \
+ make -j4 install && cd /app && \
+ cd tmp/EvoAI && \
+ mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX="$CIP/EvoAI" \
+      -DJsonBox_ROOT="$CIP/JsonBox" -DCMAKE_CXX_FLAGS=-fPIC .. && \
+ make -j4 install && cd /app && \
+ cd tmp/EcoSystem && mkdir build && cd build && \
+ cmake -DCMAKE_INSTALL_PREFIX="$CIP/EcoSystem" -DEcoSystem_BUILD_TOOLS=TRUE \ 
+      -DEvoAI_LIBRARY="$CIP/EvoAI/lib/libEvoAI-1.so" \ 
+      -DEvoAI_INCLUDE_DIR="$CIP/EvoAI/include" \ 
+      -DJsonBox_ROOT="$CIP/JsonBox" -DSPPAR_ROOT="$CIP/SPPAR" .. && \
+ make -j4 FlowerEvolver && cd /app && mkdir /app/bin && \
+ cp $CIP/JsonBox/lib/lib* ./bin/ && \
+ cp $CIP/EvoAI/lib/lib* ./bin/ && \
+ cp /app/tmp/EcoSystem/build/tools/FlowerEvolver/FlowerEvolver ./bin/
+
+# final build with alpine FlowerEvolver binaries.
+FROM python:3.10-alpine3.16 as backend
+RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
+COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
+COPY --chown=fe ./app/* /app/app/
+COPY --chown=fe ./generated /app/generated/
+COPY --chown=fe --from=builder /app/bin/* /app/bin/
+WORKDIR /app
+RUN chmod +x bin/*
+RUN apk add --update --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat && \
+         pip install --no-cache-dir -r requirements.txt && \
+         pip install --no-cache-dir gunicorn
+USER fe:fe
+# db is for dev mode only.
+VOLUME /app/generated /app/migrations /app/db
+ENV FLASK_APP=FlowerEvolver.py
+RUN sh reset.sh
+EXPOSE 5000/tcp
+ENTRYPOINT ["./entrypoint.sh"]
