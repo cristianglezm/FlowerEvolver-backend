@@ -29,17 +29,22 @@ LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
 
 ## Running docker ##
 
+I recommend using the compose file from [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git)
+read the README-docker.md in [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git) repo for how to.
+
 The Alpine version needs to download some repositories(private for now) to build the executables,
 the Ubuntu version has them inside the bin folder with the Windows executables.
 
 Before running the script to build the image, change the .env variables if you need to.
+
 * build image (alpine or ubuntu)
     * sh build_docker.sh "alpine"
     * sh build_docker.sh "ubuntu"
 * pull image (alpine(300MB) or ubuntu(800MB))
     * docker pull cristianglezm/fe:backend-alpine-dev
     * docker pull cristianglezm/fe:backend-ubuntu-dev
-* docker run -dp 5000:5000 -v generated:/app/generated -v migrations:/app/migrations -v db:/app/db cristianglezm/fe:backend-alpine-dev
+* docker run -dp 5000:5000 -v generated:/app/generated -v migrations:/app/migrations -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
+* browse to http://localhost:5000/api/flowers to get a list of flowers. (use webtools to send requests or a rest client.)
 
 ## Routes and Responses ##
 

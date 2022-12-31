@@ -35,8 +35,8 @@ COPY --chown=fe ./app/* /app/app/
 COPY --chown=fe ./generated /app/generated/
 COPY --chown=fe --from=builder /app/bin/* /app/bin/
 WORKDIR /app
-RUN chmod +x bin/*
-RUN apk add --update --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat && \
+RUN chmod +x bin/* && mv bin/lib* /usr/lib && \
+    apk add --update --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat && \
          pip install --no-cache-dir -r requirements.txt && \
          pip install --no-cache-dir gunicorn
 USER fe:fe
