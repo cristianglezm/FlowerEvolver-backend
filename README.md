@@ -35,6 +35,9 @@ read the README-docker.md in [frontend](https://github.com/cristianglezm/FlowerE
 The Alpine version needs to download some repositories(private for now) to build the executables,
 the Ubuntu version has them inside the bin folder with the Windows executables.
 
+If you want to use the alpine version you will need to pull the image from this 
+[repo](https://hub.docker.com/repository/docker/cristianglezm/fe) and change the env variables as needed.
+
 Before running the script to build the image, change the .env variables if you need to.
 
 * build image (alpine or ubuntu)
@@ -43,8 +46,10 @@ Before running the script to build the image, change the .env variables if you n
 * pull image (alpine(300MB) or ubuntu(800MB))
     * docker pull cristianglezm/fe:backend-alpine-dev
     * docker pull cristianglezm/fe:backend-ubuntu-dev
-* docker run -dp 5000:5000 -v generated:/app/generated -v migrations:/app/migrations -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
-* browse to http://localhost:5000/api/flowers to get a list of flowers. (use webtools to send requests or a rest client.)
+* docker run -dp 5000:5000 -v generated:/app/generated -v migrations:/app/migrations \ 
+    -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
+* browse to http://localhost:5000/api/flowers to get a list of flowers.
+    (use webtools to send request, a rest client or the frontend website.)
 
 ## Routes and Responses ##
 
