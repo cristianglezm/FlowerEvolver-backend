@@ -28,7 +28,7 @@ RUN cd tmp/JsonBox && mkdir build && cd build && \
  cp /app/tmp/EcoSystem/build/bin/FlowerEvolver ./bin/
 
 # final build with alpine FlowerEvolver binaries.
-FROM python:3.10-alpine3.16 as backend
+FROM python:3.10-alpine3.17 as backend
 RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
 COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
 COPY --chown=fe ./app/* /app/app/
