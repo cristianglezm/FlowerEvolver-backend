@@ -19,6 +19,10 @@ flower_list_fields = {
     'flowers': fields.List(fields.Nested(flower_fields)),
 }
 
+count_fields ={
+    'count': fields.Integer
+}
+
 flower_post_parser = reqparse.RequestParser()
 
 class FlowerResource(Resource):
@@ -34,9 +38,11 @@ class FlowerResource(Resource):
             args = request.args.to_dict()
             limit = args.get('limit', 0)
             offset = args.get('offset', 0)
+            count = args.get('count', 0)
 
             args.pop('limit', None)
             args.pop('offset', None)
+            args.pop('count', None)
 
             flower = Flower.query.filter_by(**args).order_by(Flower.id.desc())
             if limit:
@@ -44,6 +50,12 @@ class FlowerResource(Resource):
 
             if offset:
                 flower = flower.offset(offset)
+
+            if count:
+                flower = flower.all()
+                return marshal({
+                    'count': len(flower)
+                }, count_fields)
 
             flower = flower.all()
 
@@ -59,8 +71,8 @@ class FlowerResource(Resource):
         db.session.commit()
         path = Path(current_app.config['GENERATED_FOLDER'])
         makeFlower(flower.id, path.resolve())
-        flower.genome = str(str(flower.id) + '.json')
-        flower.image = str(str(flower.id) + '.png')
+        flower.genome = str(flower.id) + '.json'
+        flower.image = str(flower.id) + '.png'
         db.session.add(flower)
         db.session.commit()
         return marshal(flower, flower_fields)
@@ -88,9 +100,12 @@ class AncestorResource(Resource):
         args = request.args.to_dict()
         limit = args.get('limit', 0)
         offset = args.get('offset', 0)
+        count = args.get('count', 0)
         if father and mother:
             args.pop('limit', None)
             args.pop('offset', None)
+            args.pop('count', None)
+
             res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
                     .filter(Ancestor.father == father)\
                     .filter(and_(Ancestor.mother == mother)).order_by(Flower.id.desc())
@@ -100,14 +115,27 @@ class AncestorResource(Resource):
 
             if offset:
                 res = res.offset(offset)
+
+            if count:
+                res = res.all()
+                if res:
+                    return marshal({
+                        'count': len(res)
+                    }, count_fields)
+                else:
+                    return f"Flowers by father id {str(father)} and mother id {str(mother)} not found", 404
+
             res = res.all()
+
             if res:
                 return marshal(res, flower_fields)
             else:
-                return "Flower by father id {} and mother id {} not found".format(str(father),str(mother)), 404
+                return f"Flowers by father id {str(father)} and mother id {str(mother)} not found", 404
         elif father:
             args.pop('limit', None)
             args.pop('offset', None)
+            args.pop('count', None)
+
             res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
                     .filter((Ancestor.father == father) | (Ancestor.mother == father)).order_by(Flower.id.desc())
 
@@ -117,14 +145,23 @@ class AncestorResource(Resource):
             if offset:
                 res = res.offset(offset)
 
+            if count:
+                res = res.all()
+                if res:
+                    return marshal({
+                        'count': len(res)
+                    }, count_fields)
+                else:
+                    return f"Flowers by father or mother id {str(father)} not found", 404
             res = res.all()
             if res:
                 return marshal(res, flower_fields)
             else:
-                return "Flower by father or mother id {} not found".format(str(father)), 404
+                return f"Flowers by father or mother id {str(father)} not found", 404
         else:
             args.pop('limit', None)
             args.pop('offset', None)
+            args.pop('count', None)
 
             ancestor = Ancestor.query.filter_by(**args).order_by(Ancestor.id.desc())
             if limit:
@@ -132,6 +169,13 @@ class AncestorResource(Resource):
 
             if offset:
                 ancestor = ancestor.offset(offset)
+
+            if count:
+                ancestor = ancestor.all()
+                if ancestor:
+                    return marshal({
+                        'count': len(ancestor)
+                    }, count_fields)
 
             ancestor = ancestor.all()
 
@@ -143,13 +187,13 @@ class AncestorResource(Resource):
     def post(self):
         args = ancestor_post_parser.parse_args()
         ancestor = Ancestor(**args)
-        if Path("{}/{}.json".format(current_app.config['GENERATED_FOLDER'], str(ancestor.father))).exists() and \
-                Path("{}/{}.json".format(current_app.config['GENERATED_FOLDER'], str(ancestor.mother))).exists():
+        if Path(f"{current_app.config['GENERATED_FOLDER']}/{str(ancestor.father)}.json").exists() and \
+                Path(f"{current_app.config['GENERATED_FOLDER']}/{str(ancestor.mother)}.json").exists():
             flower = Flower()
             db.session.add(flower)
             db.session.commit()
-            flower.genome = "{}.json".format(str(flower.id))
-            flower.image = "{}.png".format(str(flower.id))
+            flower.genome = f"{str(flower.id)}.json"
+            flower.image = f"{str(flower.id)}.png"
             db.session.add(flower)
             db.session.commit()
             ancestor.id = flower.id
@@ -181,6 +225,8 @@ class MutationResource(Resource):
         args = request.args.to_dict()
         limit = args.get('limit', 0)
         offset = args.get('offset', 0)
+        count = args.get('count', 0)
+
         if mutation_original:
             res = Flower.query.join(Mutation, Flower.id == Mutation.id)\
                         .filter(Mutation.original == mutation_original).order_by(Flower.id.desc())
@@ -188,14 +234,23 @@ class MutationResource(Resource):
                 res = res.limit(limit)
             if offset:
                 res = res.offset(offset)
+
+            if count:
+                res = res.all()
+                if res:
+                    return marshal({
+                        'count': len(res)
+                    }, count_fields)
+
             res = res.all()
             if res:
                 return marshal(res, flower_fields)
             else:
-                return "flower {} has no mutations".format(str(mutation_original)), 404
+                return f"flower {str(mutation_original)} has no mutations", 404
         else:
             args.pop('limit', None)
             args.pop('offset', None)
+            args.pop('count', None)
 
             mutation = Mutation.query.filter_by(**args).order_by(Mutation.id.desc())
             if limit:
@@ -203,6 +258,13 @@ class MutationResource(Resource):
 
             if offset:
                 mutation = mutation.offset(offset)
+
+            if count:
+                mutation = mutation.all()
+                if mutation:
+                    return marshal({
+                        'count': len(mutation)
+                    }, count_fields)
 
             mutation = mutation.all()
 
@@ -214,12 +276,12 @@ class MutationResource(Resource):
     def post(self):
         args = mutation_post_parser.parse_args()
         mutation = Mutation(**args)
-        if Path("{}/{}.json".format(current_app.config['GENERATED_FOLDER'], str(mutation.original))).exists():
+        if Path(f"{current_app.config['GENERATED_FOLDER']}/{str(mutation.original)}.json").exists():
             flower = Flower()
             db.session.add(flower)
             db.session.commit()
-            flower.genome = "{}.json".format(str(flower.id))
-            flower.image = "{}.png".format(str(flower.id))
+            flower.genome = f"{str(flower.id)}.json"
+            flower.image = f"{str(flower.id)}.png"
             db.session.add(flower)
             db.session.commit()
             mutation.id = flower.id
@@ -229,4 +291,4 @@ class MutationResource(Resource):
             db.session.commit()
             return marshal(flower, flower_fields)
         else:
-            return "original {} does not exists".format(str(mutation.original)), 404
+            return f"original {str(mutation.original)} does not exists", 404

@@ -7,7 +7,7 @@ def getFlowerEvolverExe():
     if os.name == 'nt':
         exe += ".exe"
 
-    path = Path("bin/{}".format(exe))
+    path = Path(f"bin/{exe}")
     return path.resolve()
 
 class Params:
@@ -21,23 +21,28 @@ class Params:
         self.p = p
         self.bias = bias
     def __repr__(self):
-        return "layers: {}, radius: {}, p: {}, bias: {}".format(self.layers, self.radius, self.p, self.bias)
+        return f"layers: {self.layers}, radius: {self.radius}, p: {self.p}, bias: {self.bias}"
 
 def makeFlower(id, folder, params = Params()):
-    command = "{} -cli -n 1 -l {} -r {} -p {} -b {} -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()), params.layers, params.radius, params.p, params.bias,\
-                str(os.path.join(str(folder), str(id))),str(os.path.join(str(folder), str(id))))
-    process = subprocess.Popen(command, shell=True)
+    exe = str(getFlowerEvolverExe())
+    joinedPath = str(os.path.join(str(folder), str(id)))
+    command = f"{exe} -cli -n 1 -l {params.layers} -r {params.radius} -p {params.p} -b {params.bias} -sf {joinedPath}.json -si {joinedPath}.png"
+    process = subprocess.Popen(command, shell=False)
     return process.communicate()
 
 def mutateFlower(original, id, folder, params = Params()):
-    command = "{} -cli -lf {}.json -l {} -r {} -p {} -b {} -m 1 -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()), str(os.path.join(str(folder), str(original))),\
-                params.layers, params.radius, params.p, params.bias, str(os.path.join(str(folder), str(id))), str(os.path.join(str(folder), str(id))))
-    process = subprocess.Popen(command, shell=True)
+    exe = str(getFlowerEvolverExe())
+    joinedPath = str(os.path.join(str(folder), str(id)))
+    originalPath = str(os.path.join(str(folder), str(original)))
+    command = f"{exe} -cli -lf {originalPath}.json -l {params.layers} -r {params.radius} -p {params.p} -b {params.bias} -m 1 -sf {joinedPath}.json -si {joinedPath}.png"
+    process = subprocess.Popen(command, shell=False)
     return process.communicate()
 
 def reproduce(father, mother, child, folder, params = Params()):
-    command = "{} -cli -repr {}.json {}.json -l {} -r {} -p {} -b {} -sf {}.json -si {}.png".format(str(getFlowerEvolverExe()),\
-                str(os.path.join(str(folder), str(father))), str(os.path.join(str(folder), str(mother))), params.layers, params.radius, params.p,\
-                params.bias,str(os.path.join(str(folder), str(child))), str(os.path.join(str(folder), str(child))))
-    process = subprocess.Popen(command, shell=True)
+    exe = str(getFlowerEvolverExe())
+    childPath = str(os.path.join(str(folder), str(child)))
+    fatherPath = str(os.path.join(str(folder), str(father)))
+    motherPath = str(os.path.join(str(folder), str(mother)))
+    command = f"{exe} -cli -repr {fatherPath}.json {motherPath}.json -l {params.layers} -r {params.radius} -p {params.p} -b {params.bias} -sf {childPath}.json -si {childPath}.png"
+    process = subprocess.Popen(command, shell=False)
     return process.communicate()
