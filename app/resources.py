@@ -118,12 +118,9 @@ class AncestorResource(Resource):
 
             if count:
                 res = res.all()
-                if res:
-                    return marshal({
-                        'count': len(res)
-                    }, count_fields)
-                else:
-                    return f"Flowers by father id {str(father)} and mother id {str(mother)} not found", 404
+                return marshal({
+                    'count': len(res)
+                }, count_fields)
 
             res = res.all()
 
@@ -147,12 +144,10 @@ class AncestorResource(Resource):
 
             if count:
                 res = res.all()
-                if res:
-                    return marshal({
-                        'count': len(res)
-                    }, count_fields)
-                else:
-                    return f"Flowers by father or mother id {str(father)} not found", 404
+                return marshal({
+                    'count': len(res)
+                }, count_fields)
+
             res = res.all()
             if res:
                 return marshal(res, flower_fields)
@@ -172,10 +167,9 @@ class AncestorResource(Resource):
 
             if count:
                 ancestor = ancestor.all()
-                if ancestor:
-                    return marshal({
-                        'count': len(ancestor)
-                    }, count_fields)
+                return marshal({
+                    'count': len(ancestor)
+                }, count_fields)
 
             ancestor = ancestor.all()
 
@@ -237,10 +231,9 @@ class MutationResource(Resource):
 
             if count:
                 res = res.all()
-                if res:
-                    return marshal({
-                        'count': len(res)
-                    }, count_fields)
+                return marshal({
+                    'count': len(res)
+                }, count_fields)
 
             res = res.all()
             if res:
@@ -261,10 +254,9 @@ class MutationResource(Resource):
 
             if count:
                 mutation = mutation.all()
-                if mutation:
-                    return marshal({
-                        'count': len(mutation)
-                    }, count_fields)
+                return marshal({
+                    'count': len(mutation)
+                }, count_fields)
 
             mutation = mutation.all()
 
