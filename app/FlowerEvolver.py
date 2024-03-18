@@ -22,27 +22,29 @@ class Params:
         self.bias = bias
     def __repr__(self):
         return f"layers: {self.layers}, radius: {self.radius}, p: {self.p}, bias: {self.bias}"
-
+    
 def makeFlower(id, folder, params = Params()):
     exe = str(getFlowerEvolverExe())
     joinedPath = str(os.path.join(str(folder), str(id)))
-    command = f"{exe} -cli -n 1 -l {params.layers} -r {params.radius} -p {params.p} -b {params.bias} -sf {joinedPath}.json -si {joinedPath}.png"
-    process = subprocess.Popen(command, shell=False)
-    return process.communicate()
+    commandArr = [f"{exe}", "-cli", "-n", "1", "-l", f"{params.layers}", "-r", f"{params.radius}", 
+                  "-p", f"{params.p}", "-b", f"{params.bias}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
+    return subprocess.run(commandArr)
 
 def mutateFlower(original, id, folder, params = Params()):
     exe = str(getFlowerEvolverExe())
     joinedPath = str(os.path.join(str(folder), str(id)))
     originalPath = str(os.path.join(str(folder), str(original)))
-    command = f"{exe} -cli -lf {originalPath}.json -l {params.layers} -r {params.radius} -p {params.p} -b {params.bias} -m 1 -sf {joinedPath}.json -si {joinedPath}.png"
-    process = subprocess.Popen(command, shell=False)
-    return process.communicate()
+    commandArr = [f"{exe}", "-cli", "-lf", f"{originalPath}.json", "-l", f"{params.layers}", 
+                  "-r", f"{params.radius}", "-p", f"{params.p}", "-b", f"{params.bias}", 
+                  "-m", "1", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
+    return subprocess.run(commandArr)
 
 def reproduce(father, mother, child, folder, params = Params()):
     exe = str(getFlowerEvolverExe())
     childPath = str(os.path.join(str(folder), str(child)))
     fatherPath = str(os.path.join(str(folder), str(father)))
     motherPath = str(os.path.join(str(folder), str(mother)))
-    command = f"{exe} -cli -repr {fatherPath}.json {motherPath}.json -l {params.layers} -r {params.radius} -p {params.p} -b {params.bias} -sf {childPath}.json -si {childPath}.png"
-    process = subprocess.Popen(command, shell=False)
-    return process.communicate()
+    commandArr = [f"{exe}", "-cli", "-repr", f"{fatherPath}.json", f"{motherPath}.json", "-l", f"{params.layers}", 
+                  "-r", f"{params.radius}", "-p", f"{params.p}", "-b", f"{params.bias}", 
+                  "-sf", f"{childPath}.json", "-si", f"{childPath}.png"]
+    return subprocess.run(commandArr)
