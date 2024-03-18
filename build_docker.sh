@@ -52,7 +52,6 @@ case $1 in
         git clone https://github.com/cristianglezm/EcoSystem.git
     fi
     cd ..
-    pwd
     docker build -t cristianglezm/fe:backend-alpine-dev -f dockerfile.alpine .
     #rm -R tmp
    ;;
