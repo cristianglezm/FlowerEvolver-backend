@@ -1,13 +1,13 @@
 from flask_restful import Resource, reqparse, request
-from flask_restful import fields, marshal_with, marshal
+from flask_restful import fields, marshal
 from flask import current_app
 from flask_cors import cross_origin
 from app.models import Flower, Ancestor, Mutation
-from app.FlowerEvolver import *
+from .FlowerEvolver import makeFlower, mutateFlower, reproduce
 from . import db
 
 from pathlib import Path
-from sqlalchemy import and_, or_
+from sqlalchemy import and_
 
 flower_fields = {
     'id': fields.Integer,
@@ -19,11 +19,12 @@ flower_list_fields = {
     'flowers': fields.List(fields.Nested(flower_fields)),
 }
 
-count_fields ={
+count_fields = {
     'count': fields.Integer
 }
 
 flower_post_parser = reqparse.RequestParser()
+
 
 class FlowerResource(Resource):
     @cross_origin()
@@ -63,6 +64,7 @@ class FlowerResource(Resource):
                 'count': len(flower),
                 'flowers': [marshal(f, flower_fields) for f in flower]
             }, flower_list_fields)
+
     @cross_origin()
     def post(self):
         args = flower_post_parser.parse_args()
@@ -77,6 +79,7 @@ class FlowerResource(Resource):
         db.session.commit()
         return marshal(flower, flower_fields)
 
+
 ancestor_fields = {
     'id': fields.Integer,
     'father': fields.Integer,
@@ -90,8 +93,10 @@ ancestor_list_fields = {
 
 ancestor_post_parser = reqparse.RequestParser()
 
-ancestor_post_parser.add_argument('father', type=int, required=True, location=['json'], help='father parameter is required')
-ancestor_post_parser.add_argument('mother', type=int, required=True, location=['json'], help='mother parameter is required')
+ancestor_post_parser.add_argument('father', type=int, required=True, location=[
+                                  'json'], help='father parameter is required')
+ancestor_post_parser.add_argument('mother', type=int, required=True, location=[
+                                  'json'], help='mother parameter is required')
 
 
 class AncestorResource(Resource):
@@ -107,8 +112,8 @@ class AncestorResource(Resource):
             args.pop('count', None)
 
             res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
-                    .filter(Ancestor.father == father)\
-                    .filter(and_(Ancestor.mother == mother)).order_by(Flower.id.desc())
+                .filter(Ancestor.father == father)\
+                .filter(and_(Ancestor.mother == mother)).order_by(Flower.id.desc())
 
             if limit:
                 res = res.limit(limit)
@@ -134,7 +139,7 @@ class AncestorResource(Resource):
             args.pop('count', None)
 
             res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
-                    .filter((Ancestor.father == father) | (Ancestor.mother == father)).order_by(Flower.id.desc())
+                .filter((Ancestor.father == father) | (Ancestor.mother == father)).order_by(Flower.id.desc())
 
             if limit:
                 res = res.limit(limit)
@@ -177,6 +182,7 @@ class AncestorResource(Resource):
                 'count': len(ancestor),
                 'ancestors': [marshal(a, ancestor_fields) for a in ancestor]
             }, ancestor_list_fields)
+
     @cross_origin()
     def post(self):
         args = ancestor_post_parser.parse_args()
@@ -192,12 +198,13 @@ class AncestorResource(Resource):
             db.session.commit()
             ancestor.id = flower.id
             path = Path(current_app.config['GENERATED_FOLDER'])
-            reproduce(ancestor.father,ancestor.mother,ancestor.id, path.resolve())
+            reproduce(ancestor.father, ancestor.mother, ancestor.id, path.resolve())
             db.session.add(ancestor)
             db.session.commit()
             return marshal(flower, flower_fields)
         else:
             return "Father or Mother has not been found", 404
+
 
 mutation_fields = {
     'id': fields.Integer,
@@ -211,7 +218,9 @@ mutations_list_fields = {
 
 mutation_post_parser = reqparse.RequestParser()
 
-mutation_post_parser.add_argument('original', type=int, required=True, location=['json'], help='original parameter is required')
+mutation_post_parser.add_argument('original', type=int, required=True, location=[
+                                  'json'], help='original parameter is required')
+
 
 class MutationResource(Resource):
     @cross_origin()
@@ -264,6 +273,7 @@ class MutationResource(Resource):
                 'count': len(mutation),
                 'mutations': [marshal(m, mutation_fields) for m in mutation]
             }, mutations_list_fields)
+
     @cross_origin()
     def post(self):
         args = mutation_post_parser.parse_args()

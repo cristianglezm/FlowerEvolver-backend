@@ -3,7 +3,8 @@ from . import db
 
 flowers_blueprint = Blueprint('flowers', __name__)
 ancestors_blueprint = Blueprint('ancestors', __name__)
-mutationss_blueprint = Blueprint('mutations', __name__)
+mutations_blueprint = Blueprint('mutations', __name__)
+
 
 class Flower(db.Model):
     __tablename__ = 'flower'
@@ -13,23 +14,27 @@ class Flower(db.Model):
     image = db.Column(db.String(255))
 
     def __repr__(self):
-        return "id: {}, genome: {}, image: {}".format(self.id, self.genome, self.image)
+        return f"id: {self.id}, genome: {self.genome}, image: {self.image}"
+
 
 class Ancestor(db.Model):
     __tablename__ = 'ancestor'
 
-    id = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False, primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('flower.id'),
+                   nullable=False, primary_key=True)
     father = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False)
     mother = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False)
 
     def __repr__(self):
-        return "id: {}, father: {}, mother: {}".format(self.id, self.father, self.mother)
+        return f"id: {self.id}, father: {self.father}, mother: {self.mother}"
+
 
 class Mutation(db.Model):
     __tablename__ = 'mutation'
 
-    id = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False, primary_key=True)
+    id = db.Column(db.Integer, db.ForeignKey('flower.id'),
+                   nullable=False, primary_key=True)
     original = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False)
 
     def __repr__(self):
-        return "id: {}, original: {}".format(self.id, self.original)
+        return f"id: {self.id}, original: {self.original}"
