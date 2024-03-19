@@ -27,6 +27,7 @@ jobs:
         sh reset.sh
         export FLASK_APP=FlowerEvolver.py
         export LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
+        sudo chmod +x bin/*
         bin/FlowerEvolver -cli -n 1
         python -m pytest
 
