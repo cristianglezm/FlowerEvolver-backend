@@ -1,6 +1,6 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.10-alpine3.17 as builder
+FROM python:3.10-alpine3.19 as builder
 WORKDIR /app
 RUN apk add --update --no-cache gcc musl-dev libstdc++ xorg-server-dev freeglut-dev libgudev-dev libx11-dev xrandr libxrandr-dev libxcb-dev sfml-dev libc6-compat gcompat \
               build-base abuild binutils binutils git cmake extra-cmake-modules
@@ -28,7 +28,7 @@ RUN cd tmp/JsonBox && mkdir build && cd build && \
  cp /app/tmp/EcoSystem/build/bin/FlowerEvolver ./bin/
 
 # final build with alpine FlowerEvolver binaries.
-FROM python:3.10-alpine3.17 as backend
+FROM python:3.10-alpine3.19 as backend
 RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
 COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
 COPY --chown=fe ./app/* /app/app/
@@ -36,9 +36,9 @@ COPY --chown=fe ./generated /app/generated/
 COPY --chown=fe --from=builder /app/bin/* /app/bin/
 WORKDIR /app
 RUN chmod +x bin/* && mv bin/lib* /usr/lib && \
-    apk add --update --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat && \
-         pip install --no-cache-dir -r requirements.txt && \
-         pip install --no-cache-dir gunicorn
+     apk add --update --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat mesa-gl && \
+     pip install --no-cache-dir -r requirements.txt && \
+     pip install --no-cache-dir gunicorn
 USER fe:fe
 # db is for dev mode only.
 VOLUME /app/generated /app/migrations /app/db

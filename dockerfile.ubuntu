@@ -1,12 +1,15 @@
 FROM ubuntu:20.04 as backend
 RUN addgroup --system fe && \
     adduser --disabled-login --no-create-home --system fe --ingroup fe
-COPY --chown=fe . /app
+COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
+COPY --chown=fe ./bin/* /app/bin/
+COPY --chown=fe ./app/* /app/app/
+COPY --chown=fe ./generated /app/generated/
 WORKDIR /app
 RUN chmod +x bin/* && mv bin/lib* /usr/lib && \
     apt-get update -y
 ENV TZ="Europe/Madrid"
-RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y python3 libc6 pip libsfml-dev mysql-client python-dev libmysqlclient-dev && \
+RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y python3 pkg-config libc6 pip libxcursor-dev libsfml-dev mysql-client libmysqlclient-dev libssl-dev && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
 USER fe
