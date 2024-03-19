@@ -18,6 +18,7 @@ jobs:
 
     - name: Install dependencies
       run: |
+        sudo apt-get update && sudo apt-get install xorg-dev libxrandr-dev libxcursor-dev libudev-dev libopenal-dev libflac-dev libvorbis-dev libgl1-mesa-dev libegl1-mesa-dev libdrm-dev libgbm-dev
         python -m pip install --upgrade pip
         pip install -r requirements.txt
 
