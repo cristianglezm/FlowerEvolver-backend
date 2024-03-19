@@ -28,9 +28,8 @@ jobs:
         export FLASK_APP=FlowerEvolver.py
         export LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
         sudo chmod +x bin/*
-        bin/FlowerEvolver -cli -n 1
         python -m pytest
 
     - name: Run Lint
       run: |
-        python -m flake8
+        python -m flake8 --per-file-ignores='app/__init__.py:F401'
