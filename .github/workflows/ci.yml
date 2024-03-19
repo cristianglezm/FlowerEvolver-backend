@@ -25,6 +25,7 @@ jobs:
     - name: Run tests
       run: |
         sh reset.sh
+        export LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
         ldd bin/FlowerEvolver
         python -m pytest
 
