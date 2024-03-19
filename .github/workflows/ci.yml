@@ -25,6 +25,7 @@ jobs:
     - name: Run tests
       run: |
         sh reset.sh
+        ldd bin/FlowerEvolver
         python -m pytest
 
     - name: Run Lint
