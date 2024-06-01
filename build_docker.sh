@@ -40,10 +40,9 @@ case $1 in
     fi
     if [ -d "EvoAI" ]
     then
-        cd EvoAI && git checkout refactor-activations && git pull && cd ..
+        cd EvoAI && git pull && cd ..
     else
         git clone https://github.com/cristianglezm/EvoAI.git
-        cd EvoAI && git checkout refactor-activations && cd ..
     fi
     if [ -d "EcoSystem" ]
     then
