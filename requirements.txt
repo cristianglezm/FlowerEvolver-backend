@@ -22,4 +22,4 @@ pytz==2024.1
 six==1.16.0
 pytest==8.2.2
 flake8==7.1.0
-autopep8==2.2.0
+autopep8==2.3.0
