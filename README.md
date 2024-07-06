@@ -57,7 +57,12 @@ Before running the script to build the image, change the .env variables if you n
 
 * /api/flowers
 
-    create a new flower sending a empty POST, GET will get you:
+     POST 
+
+     create a new flower sending a POST with an empty json
+     or a flower genome to share it (check generated/1.json).
+
+     GET
 
 ```javascript
     {

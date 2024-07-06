@@ -1,6 +1,5 @@
 import os
 
-
 class Config(object):
     ENV = 'development'
     DEBUG = True
@@ -8,12 +7,13 @@ class Config(object):
     SQLALCHEMY_DATABASE_URI = 'sqlite:///../db/FlowerEvolver.db'
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     GENERATED_FOLDER = 'generated/'
+    FLOWER_LIMIT = os.getenv('FLOWER_LIMIT', default=5000)
     # SECRET_KEY = ''
-
 
 class ProductionConfig(Config):
     DEBUG = False
     ENV = 'production'
+    FLOWER_LIMIT = os.getenv('FLOWER_LIMIT', default=5000)
     SQLALCHEMY_DATABASE_URI = f"mysql://{os.getenv('USER')}:{os.getenv('PASSWD')}@{os.getenv('HOST')}/{os.getenv('DB')}"
     SQLALCHEMY_POOL_RECYCLE = 299
     SQLALCHEMY_POOL_TIMEOUT = 20

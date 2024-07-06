@@ -9,6 +9,7 @@ then
   echo "USER=$USER" >> .env
   echo "ENV=$ENV" >> .env
   echo "ORIGINS=$ORIGINS" >> .env
+  echo "FLOWER_LIMIT=$FLOWER_LIMIT" >> .env
   echo "SECRET_KEY=$SECRET_KEY" >> .env
 fi
 if [ -f .env ]

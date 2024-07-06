@@ -1,4 +1,6 @@
 import pytest
+import json
+from pathlib import Path
 from app import create_app
 
 base_url = "/api"
@@ -28,8 +30,23 @@ def assert_response_json_types(response, key_type_pairs):
 
 class TestFlowers:
     def test_create_flower(self, client):
-        response = client.post(f"{base_url}/flowers")
+        response = client.post(f"{base_url}/flowers", json={})
         assert_response_status(response, 200)
+
+    def test_share_flower(self, client):
+        json_path = Path('generated/1.json')
+        with json_path.open('r') as file:
+            flower_data = json.load(file)
+            response = client.post(f"{base_url}/flowers", json=flower_data)
+            assert_response_status(response, 200)
+
+    def test_share_flower_missing_node_chromosome(self, client):
+        json_path = Path('generated/1.json')
+        with json_path.open('r') as file:
+            flower_data = json.load(file)
+            del flower_data['Flower']['dna']['genomes'][1]['nodeChromosomes']
+            response = client.post(f"{base_url}/flowers", json=flower_data)
+            assert_response_status(response, 400)
 
     def test_get_flowers(self, client):
         response = client.get(f"{base_url}/flowers")
@@ -44,15 +61,21 @@ class TestFlowers:
     def test_get_flower_by_id(self, client):
         response = client.get(f"{base_url}/flowers/1")
         assert_response_status(response, 200)
-        assert_response_json_types(
-            response, [
-                ("id", int), ("genome", str), ("image", str)])
+        assert_response_json_types(response, [("id", int), ("genome", str), ("image", str)])
+        
+    def test_get_flower_by_invalid_id(self, client):
+        response = client.get(f"{base_url}/flowers/999999")
+        assert_response_status(response, 404)
 
 
 class TestMutations:
     def test_create_mutation(self, client):
         response = client.post(f"{base_url}/mutations", json={"original": 1})
         assert_response_status(response, 200)
+
+    def test_create_mutation_invalid_data(self, client):
+        response = client.post(f"{base_url}/mutations", json={"original": "invalid"})
+        assert_response_status(response, 400)
 
     def test_get_mutations(self, client):
         response = client.get(f"{base_url}/mutations")
@@ -69,11 +92,27 @@ class TestMutations:
         assert_response_status(response, 200)
         assert isinstance(response.json, list)
 
+    def test_get_mutations_by_invalid_id(self, client):
+        response = client.get(f"{base_url}/mutations/999999")
+        assert_response_status(response, 404)
+
+    def test_create_mutation_xss(self, client):
+        response = client.post(f"{base_url}/mutations", json={"original": "<script>alert('XSS')</script>"})
+        assert_response_status(response, 400)
+
 
 class TestAncestors:
     def test_create_ancestor(self, client):
         response = client.post(f"{base_url}/ancestors", json={"father": 1, "mother": 2})
         assert_response_status(response, 200)
+
+    def test_create_ancestor_invalid_data(self, client):
+        response = client.post(f"{base_url}/ancestors", json={"father": "invalid", "mother": "invalid"})
+        assert_response_status(response, 400)
+
+    def test_create_ancestor_xss(self, client):
+        response = client.post(f"{base_url}/ancestors", json={"father": "<script>alert('XSS')</script>", "mother": 2})
+        assert_response_status(response, 400)
 
     def test_get_ancestors(self, client):
         response = client.get(f"{base_url}/ancestors")
@@ -94,3 +133,19 @@ class TestAncestors:
         response = client.get(f"{base_url}/ancestors/1/2")
         assert_response_status(response, 200)
         assert isinstance(response.json, list)
+
+    def test_get_ancestors_by_invalid_father(self, client):
+        response = client.get(f"{base_url}/ancestors/999999")
+        assert_response_status(response, 404)
+
+    def test_get_ancestors_by_invalid_father_and_valid_mother(self, client):
+        response = client.get(f"{base_url}/ancestors/999999/2")
+        assert_response_status(response, 404)
+
+    def test_get_ancestors_by_valid_father_and_invalid_mother(self, client):
+        response = client.get(f"{base_url}/ancestors/1/9999999")
+        assert_response_status(response, 404)
+
+    def test_get_ancestors_by_invalid_father_and_mother(self, client):
+        response = client.get(f"{base_url}/ancestors/9999999/999999")
+        assert_response_status(response, 404)
