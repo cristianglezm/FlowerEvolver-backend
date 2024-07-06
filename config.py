@@ -1,5 +1,6 @@
 import os
 
+
 class Config(object):
     ENV = 'development'
     DEBUG = True
@@ -9,6 +10,7 @@ class Config(object):
     GENERATED_FOLDER = 'generated/'
     FLOWER_LIMIT = os.getenv('FLOWER_LIMIT', default=5000)
     # SECRET_KEY = ''
+
 
 class ProductionConfig(Config):
     DEBUG = False
