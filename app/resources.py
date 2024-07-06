@@ -18,6 +18,7 @@ flower_fields = {
     'genome': fields.String,
     'image': fields.String,
 }
+
 flower_list_fields = {
     'count': fields.Integer,
     'flowers': fields.List(fields.Nested(flower_fields)),
@@ -27,9 +28,11 @@ count_fields = {
     'count': fields.Integer
 }
 
+
 class Link(BaseModel):
     layer: str
     neuron: str
+
 
 class Connection(BaseModel):
     dest: Link
@@ -38,10 +41,12 @@ class Connection(BaseModel):
     src: Link
     weight: float
 
+
 class ConnectionChromosome(BaseModel):
     Connection: Connection
     enabled: bool
     frozen: bool
+
 
 class NodeChromosome(BaseModel):
     actType: str
@@ -49,6 +54,7 @@ class NodeChromosome(BaseModel):
     layerID: str
     neuronID: str
     nrnType: str
+
 
 class Genome(BaseModel):
     ConnectionChromosomes: List[ConnectionChromosome]
@@ -59,8 +65,10 @@ class Genome(BaseModel):
     nodeChromosomes: List[NodeChromosome]
     rnnAllowed: bool
 
+
 class DNA(BaseModel):
     genomes: List[Genome]
+
 
 class Petals(BaseModel):
     P: int
@@ -68,18 +76,23 @@ class Petals(BaseModel):
     numLayers: int
     radius: int
 
+
 class FlowerGenome(BaseModel):
     dna: DNA
     petals: Petals
 
+
 class SharedFlower(BaseModel):
     Flower: FlowerGenome
 
+
 flower_post_parser = reqparse.RequestParser()
+
 
 def isOverLimit():
     flower = Flower.query.all()
     return len(flower) > int(current_app.config['FLOWER_LIMIT'])
+
 
 class FlowerResource(Resource):
     @cross_origin()
@@ -111,13 +124,13 @@ class FlowerResource(Resource):
 
             if count:
                 flower = flower.all()
-                current_app.logger.info(f"flower - get - count")
+                current_app.logger.info("flower - get - count")
                 return marshal({
                     'count': len(flower)
                 }, count_fields)
 
             flower = flower.all()
-            current_app.logger.info(f"flower - get - all")
+            current_app.logger.info("flower - get - all")
             return marshal({
                 'count': len(flower),
                 'flowers': [marshal(f, flower_fields) for f in flower]
@@ -131,13 +144,13 @@ class FlowerResource(Resource):
     @cross_origin()
     def post(self):
         if(isOverLimit()):
-            current_app.logger.info(f"flower - post - max number reached.")
+            current_app.logger.info("flower - post - max number reached.")
             return "max number of flowers reached, wait for tomorrow", 403
         args = flower_post_parser.parse_args()
         path = Path(current_app.config['GENERATED_FOLDER'])
         sharedFlower = request.get_json()
         if not sharedFlower:
-            current_app.logger.info(f"flower - post - make Flower")
+            current_app.logger.info("flower - post - make Flower")
             flower = Flower(**args)
             db.session.add(flower)
             db.session.flush()
@@ -150,16 +163,16 @@ class FlowerResource(Resource):
             flower.image = f"{flower.id}.png"
             db.session.commit()
             return marshal(flower, flower_fields)
-        current_app.logger.info(f"flower - post - share Flower")
+        current_app.logger.info("flower - post - share Flower")
         try:
             shared_flower = SharedFlower(**sharedFlower)
         except ValidationError as e:
-            current_app.logger.error(f"flower - post - share Flower - validation error")
+            current_app.logger.error(f"flower - post - share Flower - validation error - {e}")
             return "error sharing flower, probably bad format.", 400
         random_filename = self.get_random_filename()
         tmpFlower = Path(f"instance/{random_filename}")
         with open(tmpFlower.resolve(), 'w') as f:
-            json.dump(sharedFlower, f)
+            json.dump(shared_flower.model_dump(), f)
         flower = Flower(**args)
         db.session.add(flower)
         db.session.flush()
@@ -175,16 +188,19 @@ class FlowerResource(Resource):
         tmpFlower.unlink()
         return marshal(flower, flower_fields)
 
+
 ancestor_fields = {
     'id': fields.Integer,
     'father': fields.Integer,
     'mother': fields.Integer
 }
 
+
 ancestor_list_fields = {
     'count': fields.Integer,
     'ancestors': fields.List(fields.Nested(ancestor_fields)),
 }
+
 
 ancestor_post_parser = reqparse.RequestParser()
 
@@ -218,7 +234,7 @@ class AncestorResource(Resource):
 
             if count:
                 res = res.all()
-                current_app.logger.info(f"Ancestors - get - count")
+                current_app.logger.info("Ancestors - get - count")
                 return marshal({
                     'count': len(res)
                 }, count_fields)
@@ -272,13 +288,13 @@ class AncestorResource(Resource):
 
             if count:
                 ancestor = ancestor.all()
-                current_app.logger.info(f"Ancestors - get - all - count")
+                current_app.logger.info("Ancestors - get - all - count")
                 return marshal({
                     'count': len(ancestor)
                 }, count_fields)
 
             ancestor = ancestor.all()
-            current_app.logger.info(f"Ancestors - get - all")
+            current_app.logger.info("Ancestors - get - all")
             return marshal({
                 'count': len(ancestor),
                 'ancestors': [marshal(a, ancestor_fields) for a in ancestor]
@@ -287,7 +303,7 @@ class AncestorResource(Resource):
     @cross_origin()
     def post(self):
         if(isOverLimit()):
-            current_app.logger.info(f"Ancestors - post - max number reached.")
+            current_app.logger.info("Ancestors - post - max number reached.")
             return "max number of flowers reached, wait for tomorrow", 403
         args = ancestor_post_parser.parse_args()
         ancestor = Ancestor(**args)
@@ -307,10 +323,10 @@ class AncestorResource(Resource):
                 return f"Something went wrong then repoducing flowers with id {ancestor.father} and {ancestor.mother}", 400
             db.session.add(ancestor)
             db.session.commit()
-            current_app.logger.info(f"Ancestors - post - reproduce")
+            current_app.logger.info("Ancestors - post - reproduce")
             return marshal(flower, flower_fields)
         else:
-            current_app.logger.info(f"Ancestors - post - father or mother not found")
+            current_app.logger.info("Ancestors - post - father or mother not found")
             return "Father or Mother has not been found", 404
 
 
@@ -348,7 +364,7 @@ class MutationResource(Resource):
 
             if count:
                 res = res.all()
-                current_app.logger.info(f"Mutations - get - count")
+                current_app.logger.info("Mutations - get - count")
                 return marshal({
                     'count': len(res)
                 }, count_fields)
@@ -358,7 +374,7 @@ class MutationResource(Resource):
                 current_app.logger.info(f"Mutations - get - {mutation_original} - all")
                 return marshal(res, flower_fields)
             else:
-                current_app.logger.info(f"Mutations - get - not found")
+                current_app.logger.info("Mutations - get - not found")
                 return f"flower {str(mutation_original)} has no mutations", 404
         else:
             args.pop('limit', None)
@@ -374,13 +390,13 @@ class MutationResource(Resource):
 
             if count:
                 mutation = mutation.all()
-                current_app.logger.info(f"Mutations - get - all - count")
+                current_app.logger.info("Mutations - get - all - count")
                 return marshal({
                     'count': len(mutation)
                 }, count_fields)
 
             mutation = mutation.all()
-            current_app.logger.info(f"Mutations - get - all")
+            current_app.logger.info("Mutations - get - all")
             return marshal({
                 'count': len(mutation),
                 'mutations': [marshal(m, mutation_fields) for m in mutation]
@@ -389,7 +405,7 @@ class MutationResource(Resource):
     @cross_origin()
     def post(self):
         if(isOverLimit()):
-            current_app.logger.info(f"Mutations - post - max number reached.")
+            current_app.logger.info("Mutations - post - max number reached.")
             return "max number of flowers reached, wait for tomorrow", 403
         args = mutation_post_parser.parse_args()
         mutation = Mutation(**args)

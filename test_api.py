@@ -62,7 +62,7 @@ class TestFlowers:
         response = client.get(f"{base_url}/flowers/1")
         assert_response_status(response, 200)
         assert_response_json_types(response, [("id", int), ("genome", str), ("image", str)])
-        
+
     def test_get_flower_by_invalid_id(self, client):
         response = client.get(f"{base_url}/flowers/999999")
         assert_response_status(response, 404)

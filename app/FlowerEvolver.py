@@ -35,11 +35,13 @@ def makeFlower(id, folder, params=Params()):
                   "-p", f"{params.p}", "-b", f"{params.bias}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
     return subprocess.run(commandArr)
 
+
 def drawFlower(id, folder, jsonfile):
     exe = str(getFlowerEvolverExe())
     joinedPath = str(os.path.join(str(folder), str(id)))
-    commandArr = [f"{exe}","-cli","-lf",f"{jsonfile}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
+    commandArr = [f"{exe}", "-cli", "-lf", f"{jsonfile}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
     return subprocess.run(commandArr)
+
 
 def mutateFlower(original, id, folder, params=Params()):
     exe = str(getFlowerEvolverExe())
