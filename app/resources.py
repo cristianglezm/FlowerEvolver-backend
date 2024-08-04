@@ -2,7 +2,7 @@ import string
 import random
 import json
 from pydantic import BaseModel, ValidationError
-from typing import List
+from typing import List, Union
 from flask_restful import Resource, reqparse, request
 from flask_restful import fields, marshal
 from flask import current_app
@@ -71,8 +71,8 @@ class DNA(BaseModel):
 
 
 class Petals(BaseModel):
-    P: int
-    bias: int
+    P: Union[float, int]
+    bias: Union[float, int]
     numLayers: int
     radius: int
 
