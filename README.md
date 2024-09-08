@@ -18,6 +18,7 @@ PASSWD='passwd'
 USER=user
 ENV=production | development
 ORIGINS=*
+FLOWER_LIMIT=5000
 SECRET_KEY='notreallyneeded'
 LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
 ```
@@ -70,6 +71,7 @@ Before running the script to build the image, change the .env variables if you n
         flowers:[{ id: Number, genome:String, image:String}, ...],
     }
 ```
+
 * /api/flowers/:id
 
     GET
@@ -81,6 +83,16 @@ Before running the script to build the image, change the .env variables if you n
         image:String
     }
 ```
+* /api/flowers?count=1
+
+    GET
+
+```javasript
+    {
+        "count":0
+    }
+```
+
 * /api/mutations
 
     POST send
@@ -106,6 +118,16 @@ Before running the script to build the image, change the .env variables if you n
         ...
     ]}
 ```
+* /api/mutations?count=1
+
+    GET
+
+```javasript
+    {
+        "count":0
+    }
+```
+
 * /api/ancestors
 
     POST send
@@ -124,6 +146,17 @@ Before running the script to build the image, change the .env variables if you n
         ancestors:[{id:Number, father: Number, mother: Number}, ...]
     }
 ```
+
+* /api/ancestors?count=1
+
+    GET
+
+```javasript
+    {
+        "count":0
+    }
+```
+
 * /api/ancestors/:father
 
     GET
