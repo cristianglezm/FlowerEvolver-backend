@@ -89,7 +89,7 @@ Before running the script to build the image, change the .env variables if you n
 
 ```javasript
     {
-        "count":0
+        count: Number
     }
 ```
 
@@ -124,7 +124,7 @@ Before running the script to build the image, change the .env variables if you n
 
 ```javasript
     {
-        "count":0
+        count: Number
     }
 ```
 
@@ -153,7 +153,7 @@ Before running the script to build the image, change the .env variables if you n
 
 ```javasript
     {
-        "count":0
+        count: Number
     }
 ```
 
