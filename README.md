@@ -1,6 +1,6 @@
 # Flower Evolver Backend #
 
-[![CI](https://github.com/cristianglezm/FlowerEvolver-backend/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cristianglezm/FlowerEvolver-backend/actions/workflows/ci.yml)
+[![CI](https://github.com/cristianglezm/FlowerEvolver-backend/actions/workflows/ci.yml/badge.svg?branch=master)](https://github.com/cristianglezm/FlowerEvolver-backend/actions/workflows/ci.yml) [![Docker](https://github.com/cristianglezm/FlowerEvolver-backend/actions/workflows/docker.yml/badge.svg?branch=master)](https://github.com/cristianglezm/FlowerEvolver-backend/actions/workflows/docker.yml)
 
 Flower Evolver backend, frontend can be found [here](https://github.com/cristianglezm/FlowerEvolver-frontend)
 
