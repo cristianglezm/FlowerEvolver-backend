@@ -29,7 +29,7 @@ then
     mkdir db
     echo "made folder db"
   fi
-# reset db mysql and images and genomes of flowers
+# reset mysql db and images and genomes of flowers
   rm generated/*.png generated/*.json
   echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
 fi
