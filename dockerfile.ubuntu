@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 as backend
+FROM python:3.10.15-bullseye as backend
 RUN addgroup --system fe && \
     adduser --disabled-login --no-create-home --system fe --ingroup fe
 COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
@@ -9,7 +9,8 @@ WORKDIR /app
 RUN chmod +x bin/* ./entrypoint.sh && mv bin/lib* /usr/lib && \
     apt-get update -y
 ENV TZ="Europe/Madrid"
-RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y python3 pkg-config libc6 pip libxcursor-dev libsfml-dev mysql-client libmysqlclient-dev libssl-dev && \
+RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y python3.10 pkg-config libc6 pip libxcursor-dev libsfml-dev mysql-client libmysqlclient-dev libssl-dev && \
+    python -m pip install --upgrade && \
     pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
 USER fe
