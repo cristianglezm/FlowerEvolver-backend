@@ -29,8 +29,9 @@ def create_app():
         return jsonify(error=str(e)), code
     for ex in default_exceptions:
         app.register_error_handler(ex, handle_error)
-    print(f"|> Using {os.getenv('ORIGINS')} for origins")
-    CORS(app, resources={r"/api/*": {"origins": os.getenv("ORIGINS", default="*")}})
+    allowed_origins = os.getenv("ORIGINS", default="*").split(",")
+    print(f"|> Using {allowed_origins} for origins")
+    CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
     db.init_app(app)
     api = Api(app)
     api.prefix = '/api'
