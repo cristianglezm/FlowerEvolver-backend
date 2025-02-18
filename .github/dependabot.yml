@@ -9,8 +9,16 @@ updates:
     directory: "/"
     schedule:
       interval: "weekly"
+    reviewers:
+      - cristianglezm
+    assignees:
+      - cristianglezm
       
   - package-ecosystem: "github-actions"
     directory: "/"
     schedule:
       interval: "weekly"
+    reviewers:
+      - cristianglezm
+    assignees:
+      - cristianglezm
