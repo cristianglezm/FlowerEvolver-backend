@@ -1,4 +1,4 @@
-FROM ubuntu:20.04 AS backend
+FROM ubuntu:22.04 AS backend
 RUN addgroup --system fe && \
     adduser --disabled-login --no-create-home --system fe --ingroup fe
 COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
@@ -20,10 +20,8 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y \
     ln -s /usr/bin/python3.10 /usr/bin/python3
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10
 RUN python3 -m pip install --upgrade pip setuptools wheel
-RUN pip install --no-cache-dir -r requirements.txt && \
-    pip install --no-cache-dir gunicorn && \
-    apt-get -y autoclean && \
-    apt-get -y autoremove
+RUN pip install --no-cache-dir --ignore-installed -r requirements.txt && \
+    pip install --no-cache-dir gunicorn
 USER fe
 # db is for dev mode only.
 VOLUME /app/generated /app/migrations /app/db
