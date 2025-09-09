@@ -67,6 +67,23 @@ class TestFlowers:
         response = client.get(f"{base_url}/flowers/999999")
         assert_response_status(response, 404)
 
+class TestDescriptions:
+    def test_get_descriptions(self, client):
+        response = client.get(f"{base_url}/descriptions")
+        assert_response_status(response, 200)
+
+    def test_get_descriptions_count(self, client):
+        response = client.get(f"{base_url}/descriptions")
+        assert_response_status(response, 200)
+        assert_response_json_types(response, [("count", int), ("descriptions", list)])
+
+    def test_get_descriptions_by_id(self, client):
+        response = client.get(f"{base_url}/descriptions/1")
+        assert_response_status(response, 404)
+
+    def test_get_descriptions_by_invalid_id(self, client):
+        response = client.get(f"{base_url}/descriptions/999999")
+        assert_response_status(response, 404)
 
 class TestMutations:
     def test_create_mutation(self, client):

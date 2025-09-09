@@ -10,3 +10,4 @@ ctags.tmp
 migrations
 instance
 tmp
+*.backup

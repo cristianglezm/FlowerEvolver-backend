@@ -36,12 +36,13 @@ def create_app():
     api = Api(app)
     api.prefix = '/api'
     with app.app_context():
-        from .models import (flowers_blueprint, ancestors_blueprint, mutations_blueprint)
-        from .resources import (FlowerResource, AncestorResource, MutationResource)
+        from .models import (flowers_blueprint, ancestors_blueprint, mutations_blueprint, descriptions_blueprint)
+        from .resources import (FlowerResource, AncestorResource, MutationResource, DescriptionsResource)
         from .routes import generated, download
         api.add_resource(FlowerResource, '/flowers', '/flowers/<int:flower_id>')
         api.add_resource(MutationResource, '/mutations', '/mutations/<int:mutation_original>')
         api.add_resource(AncestorResource, '/ancestors', '/ancestors/<int:father>', '/ancestors/<int:father>/<int:mother>')
+        api.add_resource(DescriptionsResource, '/descriptions', '/descriptions/<int:desc_id>')
 
         app.register_blueprint(flowers_blueprint)
         app.register_blueprint(ancestors_blueprint)

@@ -4,7 +4,7 @@ from . import db
 flowers_blueprint = Blueprint('flowers', __name__)
 ancestors_blueprint = Blueprint('ancestors', __name__)
 mutations_blueprint = Blueprint('mutations', __name__)
-
+descriptions_blueprint = Blueprint('descriptions', __name__)
 
 class Flower(db.Model):
     __tablename__ = 'flower'
@@ -38,3 +38,12 @@ class Mutation(db.Model):
 
     def __repr__(self):
         return f"id: {self.id}, original: {self.original}"
+
+class Descriptions(db.Model):
+    __tablename__ = 'descriptions'
+
+    id = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False, primary_key=True)
+    description = db.Column(db.String, nullable=False)
+
+    def __repr__(self):
+        return f"id: {self.id}, description:{self.description}"

@@ -9,7 +9,7 @@ from flask import current_app
 from flask_cors import cross_origin
 from pathlib import Path
 from sqlalchemy import and_
-from app.models import Flower, Ancestor, Mutation
+from app.models import Flower, Ancestor, Mutation, Descriptions
 from .FlowerEvolver import makeFlower, drawFlower, mutateFlower, reproduce
 from . import db
 
@@ -429,3 +429,58 @@ class MutationResource(Resource):
         else:
             current_app.logger.info(f"Mutations - post - original {str(mutation.original)} not found")
             return f"original {str(mutation.original)} does not exists", 404
+
+descriptions_fields = {
+    'id': fields.Integer,
+    'description': fields.Integer
+}
+
+descriptions_list_fields = {
+    'count': fields.Integer,
+    'descriptions': fields.List(fields.Nested(descriptions_fields)),
+}
+
+
+class DescriptionsResource(Resource):
+    @cross_origin()
+    def get(self, desc_id=None):
+        args = request.args.to_dict()
+        limit = args.get('limit', 0)
+        offset = args.get('offset', 0)
+        count = args.get('count', 0)
+
+        if desc_id:
+            res = Descriptions.query.filter_by(id = desc_id).first()
+
+            if res:
+                current_app.logger.info(f"Descriptions - get - {desc_id} - all")
+                return marshal(res, flower_fields)
+            else:
+                current_app.logger.info("Descriptions - get - not found")
+                return f"flower {str(desc_id)} has no description", 404
+        else:
+            args.pop('limit', None)
+            args.pop('offset', None)
+            args.pop('count', None)
+
+            desc = Descriptions.query.filter_by(**args).order_by(Descriptions.id.desc())
+            if limit:
+                desc = desc.limit(limit)
+
+            if offset:
+                desc = desc.offset(offset)
+
+            if count:
+                desc = desc.all()
+                current_app.logger.info("Descriptions - get - all - count")
+                return marshal({
+                    'count': len(desc)
+                }, count_fields)
+
+            desc = desc.all()
+            current_app.logger.info("Descriptions - get - all")
+            return marshal({
+                'count': len(desc),
+                'descriptions': [marshal(d, descriptions_fields) for d in desc]
+            }, descriptions_list_fields)
+
