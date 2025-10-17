@@ -12,7 +12,7 @@ alembic==1.17.0
 aniso8601==10.0.1
 click==8.3.0
 itsdangerous==2.2.0
-pydantic==2.11.10
+pydantic==2.12.2
 mysqlclient==2.2.7
 pathlib==1.0.1
 python-dateutil==2.9.0.post0
