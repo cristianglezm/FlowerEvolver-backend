@@ -16,7 +16,7 @@ pydantic==2.12.3
 mysqlclient==2.2.7
 pathlib==1.0.1
 python-dateutil==2.9.0.post0
-python-dotenv==1.1.1
+python-dotenv==1.2.1
 python-editor==1.0.4
 pytz==2025.2
 six==1.17.0
