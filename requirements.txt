@@ -10,7 +10,7 @@ SQLAlchemy==2.0.51
 Werkzeug==3.1.8
 alembic==1.18.5
 aniso8601==10.0.1
-click==8.4.1
+click==8.4.2
 itsdangerous==2.2.0
 pydantic==2.13.4
 mysqlclient==2.2.8
