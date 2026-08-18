@@ -8,7 +8,7 @@ Mako==1.4.1
 PyJWT==2.13.0
 SQLAlchemy==2.0.52
 Werkzeug==3.1.8
-alembic==1.19.0
+alembic==1.19.1
 aniso8601==10.0.1
 click==8.4.2
 itsdangerous==2.2.0
