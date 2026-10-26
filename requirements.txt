@@ -15,7 +15,7 @@ itsdangerous==2.2.0
 pydantic==2.14.0
 mysqlclient==2.3.0
 pathlib==1.0.1
-python-dateutil==2.9.0.post0
+python-dateutil==3.0.0
 python-dotenv==1.2.4
 python-editor==1.0.4
 pytz==2026.5
