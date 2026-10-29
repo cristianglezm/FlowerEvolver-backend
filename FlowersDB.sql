@@ -6,7 +6,7 @@ CREATE TABLE 'flower' (
 	`Image` char(255),
 	PRIMARY KEY('ID')
 );
-CREATE TABLE 'ancestor' (
+CREATE TABLE 'descendant' (
 	`ID` INTEGER NOT NULL UNIQUE, 
 	`Father` INTEGER NOT NULL, 
 	`Mother` INTEGER NOT NULL, 

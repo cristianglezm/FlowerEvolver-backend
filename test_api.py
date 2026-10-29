@@ -67,6 +67,7 @@ class TestFlowers:
         response = client.get(f"{base_url}/flowers/999999")
         assert_response_status(response, 404)
 
+
 class TestDescriptions:
     def test_get_descriptions(self, client):
         response = client.get(f"{base_url}/descriptions")
@@ -84,6 +85,7 @@ class TestDescriptions:
     def test_get_descriptions_by_invalid_id(self, client):
         response = client.get(f"{base_url}/descriptions/999999")
         assert_response_status(response, 404)
+
 
 class TestMutations:
     def test_create_mutation(self, client):
@@ -118,51 +120,51 @@ class TestMutations:
         assert_response_status(response, 400)
 
 
-class TestAncestors:
-    def test_create_ancestor(self, client):
-        response = client.post(f"{base_url}/ancestors", json={"father": 1, "mother": 2})
+class TestDescendants:
+    def test_create_descendant(self, client):
+        response = client.post(f"{base_url}/descendants", json={"father": 1, "mother": 2})
         assert_response_status(response, 200)
 
-    def test_create_ancestor_invalid_data(self, client):
-        response = client.post(f"{base_url}/ancestors", json={"father": "invalid", "mother": "invalid"})
+    def test_create_descendant_invalid_data(self, client):
+        response = client.post(f"{base_url}/descendants", json={"father": "invalid", "mother": "invalid"})
         assert_response_status(response, 400)
 
-    def test_create_ancestor_xss(self, client):
-        response = client.post(f"{base_url}/ancestors", json={"father": "<script>alert('XSS')</script>", "mother": 2})
+    def test_create_descendant_xss(self, client):
+        response = client.post(f"{base_url}/descendants", json={"father": "<script>alert('XSS')</script>", "mother": 2})
         assert_response_status(response, 400)
 
-    def test_get_ancestors(self, client):
-        response = client.get(f"{base_url}/ancestors")
+    def test_get_descendants(self, client):
+        response = client.get(f"{base_url}/descendants")
         assert_response_status(response, 200)
-        assert_response_json_types(response, [("count", int), ("ancestors", list)])
+        assert_response_json_types(response, [("count", int), ("descendants", list)])
 
-    def test_get_ancestors_count(self, client):
-        response = client.get(f"{base_url}/ancestors?count=1")
+    def test_get_descendants_count(self, client):
+        response = client.get(f"{base_url}/descendants?count=1")
         assert_response_status(response, 200)
         assert_response_json_types(response, [("count", int)])
 
-    def test_get_ancestors_by_father(self, client):
-        response = client.get(f"{base_url}/ancestors/1")
+    def test_get_descendants_by_father(self, client):
+        response = client.get(f"{base_url}/descendants/1")
         assert_response_status(response, 200)
         assert isinstance(response.json, list)
 
-    def test_get_ancestors_by_father_and_mother(self, client):
-        response = client.get(f"{base_url}/ancestors/1/2")
+    def test_get_descendants_by_father_and_mother(self, client):
+        response = client.get(f"{base_url}/descendants/1/2")
         assert_response_status(response, 200)
         assert isinstance(response.json, list)
 
-    def test_get_ancestors_by_invalid_father(self, client):
-        response = client.get(f"{base_url}/ancestors/999999")
+    def test_get_descendants_by_invalid_father(self, client):
+        response = client.get(f"{base_url}/descendants/999999")
         assert_response_status(response, 404)
 
-    def test_get_ancestors_by_invalid_father_and_valid_mother(self, client):
-        response = client.get(f"{base_url}/ancestors/999999/2")
+    def test_get_descendants_by_invalid_father_and_valid_mother(self, client):
+        response = client.get(f"{base_url}/descendants/999999/2")
         assert_response_status(response, 404)
 
-    def test_get_ancestors_by_valid_father_and_invalid_mother(self, client):
-        response = client.get(f"{base_url}/ancestors/1/9999999")
+    def test_get_descendants_by_valid_father_and_invalid_mother(self, client):
+        response = client.get(f"{base_url}/descendants/1/9999999")
         assert_response_status(response, 404)
 
-    def test_get_ancestors_by_invalid_father_and_mother(self, client):
-        response = client.get(f"{base_url}/ancestors/9999999/999999")
+    def test_get_descendants_by_invalid_father_and_mother(self, client):
+        response = client.get(f"{base_url}/descendants/9999999/999999")
         assert_response_status(response, 404)

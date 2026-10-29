@@ -9,7 +9,7 @@ from flask import current_app
 from flask_cors import cross_origin
 from pathlib import Path
 from sqlalchemy import and_
-from app.models import Flower, Ancestor, Mutation, Descriptions
+from app.models import Flower, Descendant, Mutation, Descriptions
 from .FlowerEvolver import makeFlower, drawFlower, mutateFlower, reproduce
 from . import db
 
@@ -189,28 +189,28 @@ class FlowerResource(Resource):
         return marshal(flower, flower_fields)
 
 
-ancestor_fields = {
+descendant_fields = {
     'id': fields.Integer,
     'father': fields.Integer,
     'mother': fields.Integer
 }
 
 
-ancestor_list_fields = {
+descendant_list_fields = {
     'count': fields.Integer,
-    'ancestors': fields.List(fields.Nested(ancestor_fields)),
+    'descendants': fields.List(fields.Nested(descendant_fields)),
 }
 
 
-ancestor_post_parser = reqparse.RequestParser()
+descendant_post_parser = reqparse.RequestParser()
 
-ancestor_post_parser.add_argument('father', type=int, required=True, location=[
-                                  'json'], help='father parameter is required')
-ancestor_post_parser.add_argument('mother', type=int, required=True, location=[
-                                  'json'], help='mother parameter is required')
+descendant_post_parser.add_argument('father', type=int, required=True, location=[
+                                    'json'], help='father parameter is required')
+descendant_post_parser.add_argument('mother', type=int, required=True, location=[
+                                    'json'], help='mother parameter is required')
 
 
-class AncestorResource(Resource):
+class DescendantResource(Resource):
     @cross_origin()
     def get(self, father=None, mother=None):
         args = request.args.to_dict()
@@ -222,9 +222,9 @@ class AncestorResource(Resource):
             args.pop('offset', None)
             args.pop('count', None)
 
-            res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
-                .filter(Ancestor.father == father)\
-                .filter(and_(Ancestor.mother == mother)).order_by(Flower.id.desc())
+            res = Flower.query.join(Descendant, Flower.id == Descendant.id)\
+                .filter(Descendant.father == father)\
+                .filter(and_(Descendant.mother == mother)).order_by(Flower.id.desc())
 
             if limit:
                 res = res.limit(limit)
@@ -234,7 +234,7 @@ class AncestorResource(Resource):
 
             if count:
                 res = res.all()
-                current_app.logger.info("Ancestors - get - count")
+                current_app.logger.info("Descendants - get - count")
                 return marshal({
                     'count': len(res)
                 }, count_fields)
@@ -242,7 +242,7 @@ class AncestorResource(Resource):
             res = res.all()
 
             if res:
-                current_app.logger.info(f"Ancestors - get - all from - {father} and {mother}")
+                current_app.logger.info(f"Descendants - get - all from - {father} and {mother}")
                 return marshal(res, flower_fields)
             else:
                 return f"Flowers by father id {str(father)} and mother id {str(mother)} not found", 404
@@ -251,8 +251,8 @@ class AncestorResource(Resource):
             args.pop('offset', None)
             args.pop('count', None)
 
-            res = Flower.query.join(Ancestor, Flower.id == Ancestor.id)\
-                .filter((Ancestor.father == father) | (Ancestor.mother == father)).order_by(Flower.id.desc())
+            res = Flower.query.join(Descendant, Flower.id == Descendant.id)\
+                .filter((Descendant.father == father) | (Descendant.mother == father)).order_by(Flower.id.desc())
 
             if limit:
                 res = res.limit(limit)
@@ -262,71 +262,71 @@ class AncestorResource(Resource):
 
             if count:
                 res = res.all()
-                current_app.logger.info(f"Ancestors - get - count from - {father}")
+                current_app.logger.info(f"Descendants - get - count from - {father}")
                 return marshal({
                     'count': len(res)
                 }, count_fields)
 
             res = res.all()
             if res:
-                current_app.logger.info(f"Ancestors - get - all from - {father}")
+                current_app.logger.info(f"Descendants - get - all from - {father}")
                 return marshal(res, flower_fields)
             else:
-                current_app.logger.info(f"Ancestors - get - not found from - {father}")
+                current_app.logger.info(f"Descendants - get - not found from - {father}")
                 return f"Flowers by father or mother id {str(father)} not found", 404
         else:
             args.pop('limit', None)
             args.pop('offset', None)
             args.pop('count', None)
 
-            ancestor = Ancestor.query.filter_by(**args).order_by(Ancestor.id.desc())
+            descendant = Descendant.query.filter_by(**args).order_by(Descendant.id.desc())
             if limit:
-                ancestor = ancestor.limit(limit)
+                descendant = descendant.limit(limit)
 
             if offset:
-                ancestor = ancestor.offset(offset)
+                descendant = descendant.offset(offset)
 
             if count:
-                ancestor = ancestor.all()
-                current_app.logger.info("Ancestors - get - all - count")
+                descendant = descendant.all()
+                current_app.logger.info("Descendants - get - all - count")
                 return marshal({
-                    'count': len(ancestor)
+                    'count': len(descendant)
                 }, count_fields)
 
-            ancestor = ancestor.all()
-            current_app.logger.info("Ancestors - get - all")
+            descendant = descendant.all()
+            current_app.logger.info("Descendants - get - all")
             return marshal({
-                'count': len(ancestor),
-                'ancestors': [marshal(a, ancestor_fields) for a in ancestor]
-            }, ancestor_list_fields)
+                'count': len(descendant),
+                'descendants': [marshal(d, descendant_fields) for d in descendant]
+            }, descendant_list_fields)
 
     @cross_origin()
     def post(self):
         if(isOverLimit()):
-            current_app.logger.info("Ancestors - post - max number reached.")
+            current_app.logger.info("Descendants - post - max number reached.")
             return "max number of flowers reached, wait for tomorrow", 403
-        args = ancestor_post_parser.parse_args()
-        ancestor = Ancestor(**args)
-        if Path(f"{current_app.config['GENERATED_FOLDER']}/{str(ancestor.father)}.json").exists() and \
-                Path(f"{current_app.config['GENERATED_FOLDER']}/{str(ancestor.mother)}.json").exists():
+        args = descendant_post_parser.parse_args()
+        descendant = Descendant(**args)
+        if Path(f"{current_app.config['GENERATED_FOLDER']}/{str(descendant.father)}.json").exists() and \
+                Path(f"{current_app.config['GENERATED_FOLDER']}/{str(descendant.mother)}.json").exists():
             flower = Flower()
             db.session.add(flower)
             db.session.flush()
             flower.genome = f"{str(flower.id)}.json"
             flower.image = f"{str(flower.id)}.png"
-            ancestor.id = flower.id
+            descendant.id = flower.id
             path = Path(current_app.config['GENERATED_FOLDER'])
-            status = reproduce(ancestor.father, ancestor.mother, ancestor.id, path.resolve())
+            status = reproduce(descendant.father, descendant.mother, descendant.id, path.resolve())
             if(status.returncode != 0):
                 db.session.unroll()
-                current_app.logger.info(f"Ancestors - post - reproduce - error - {status.stderr}")
-                return f"Something went wrong then repoducing flowers with id {ancestor.father} and {ancestor.mother}", 400
-            db.session.add(ancestor)
+                current_app.logger.info(f"Descendants - post - reproduce - error - {status.stderr}")
+                return f"Something went wrong then repoducing flowers with id {descendant.father} and {descendant.mother}", 400
+            db.session.add(descendant)
             db.session.commit()
-            current_app.logger.info("Ancestors - post - reproduce")
+            current_app.logger.info("Descendants - post - reproduce")
             return marshal(flower, flower_fields)
         else:
-            current_app.logger.info("Ancestors - post - father or mother not found")
+            current_app.logger.info("Descendants - post - father or mother not found")
             return "Father or Mother has not been found", 404
 
 
@@ -430,10 +430,12 @@ class MutationResource(Resource):
             current_app.logger.info(f"Mutations - post - original {str(mutation.original)} not found")
             return f"original {str(mutation.original)} does not exists", 404
 
+
 descriptions_fields = {
     'id': fields.Integer,
-    'description': fields.Integer
+    'description': fields.String
 }
+
 
 descriptions_list_fields = {
     'count': fields.Integer,
@@ -450,11 +452,11 @@ class DescriptionsResource(Resource):
         count = args.get('count', 0)
 
         if desc_id:
-            res = Descriptions.query.filter_by(id = desc_id).first()
+            res = Descriptions.query.filter_by(id=desc_id).first()
 
             if res:
                 current_app.logger.info(f"Descriptions - get - {desc_id} - all")
-                return marshal(res, flower_fields)
+                return marshal(res, descriptions_fields)
             else:
                 current_app.logger.info("Descriptions - get - not found")
                 return f"flower {str(desc_id)} has no description", 404
@@ -483,4 +485,3 @@ class DescriptionsResource(Resource):
                 'count': len(desc),
                 'descriptions': [marshal(d, descriptions_fields) for d in desc]
             }, descriptions_list_fields)
-

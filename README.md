@@ -128,7 +128,7 @@ Before running the script to build the image, change the .env variables if you n
     }
 ```
 
-* /api/ancestors
+* /api/descendants
 
     POST send
 
@@ -143,11 +143,11 @@ Before running the script to build the image, change the .env variables if you n
 ```javascript
     {
         count: Number,
-        ancestors:[{id:Number, father: Number, mother: Number}, ...]
+        descendants:[{id:Number, father: Number, mother: Number}, ...]
     }
 ```
 
-* /api/ancestors?count=1
+* /api/descendants?count=1
 
     GET
 
@@ -157,9 +157,9 @@ Before running the script to build the image, change the .env variables if you n
     }
 ```
 
-* /api/ancestors/:father
+* /api/descendants/:father
 
-    GET
+    GET returns every descendant of :father (as father or mother)
 
 ```javascript
     {[
@@ -167,13 +167,45 @@ Before running the script to build the image, change the .env variables if you n
         ...
     ]}
 ```
-* /api/ancestors/:father/:mother
+* /api/descendants/:father/:mother
 
-    GET
+    GET returns every descendant of :father and :mother
 
 ```javascript
     {[
         {id: Number, genome: String, image: String},
         ...
     ]}
+```
+
+* /api/descriptions
+
+    GET
+
+```javascript
+    {
+        count: Number,
+        descriptions:[{id: Number, description: String}, ...]
+    }
+```
+
+* /api/descriptions?count=1
+
+    GET
+
+```javasript
+    {
+        count: Number
+    }
+```
+
+* /api/descriptions/:id
+
+    GET
+
+```javascript
+    {
+        id: Number,
+        description: String
+    }
 ```
