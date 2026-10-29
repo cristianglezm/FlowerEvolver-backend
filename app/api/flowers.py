@@ -11,6 +11,8 @@ from ..services.flower_evolver import makeFlower, drawFlower, FlowerEvolverError
 from ..repositories import flower_repository
 from ..pagination import parse_list_args, count_fields
 from ..background import kafka_producer
+from ..errors import error_response
+from ..metrics import FLOWERS_GENERATED_TOTAL, FLOWER_LIMIT_REACHED_TOTAL
 from .. import db
 
 logger = structlog.get_logger(__name__)
@@ -29,8 +31,11 @@ flower_list_fields = {
 flower_post_parser = reqparse.RequestParser()
 
 
-def is_over_limit():
-    return flower_repository.total_count() > int(current_app.config['FLOWER_LIMIT'])
+def is_over_limit(kind='create'):
+    over = flower_repository.total_count() >= int(current_app.config['FLOWER_LIMIT'])
+    if over:
+        FLOWER_LIMIT_REACHED_TOTAL.labels(kind=kind).inc()
+    return over
 
 
 class FlowerResource(Resource):
@@ -43,18 +48,19 @@ class FlowerResource(Resource):
                 return marshal(flower, flower_fields)
             else:
                 logger.info("flower_get_not_found", flower_id=flower_id)
-                return "flower not found", 404
+                return error_response("flower not found", 404)
 
         filters, limit, offset, count, error = parse_list_args(
             request.args.to_dict(), allowed_filters=('id', 'genome', 'image'))
         if error:
             logger.info("flower_get_invalid_filter", error=error)
-            return error, 400
+            return error_response(error, 400)
 
-        flowers = flower_repository.list_flowers(filters, limit, offset)
         if count:
             logger.info("flower_get_count")
-            return marshal({'count': len(flowers)}, count_fields)
+            return marshal({'count': flower_repository.count_flowers(filters)}, count_fields)
+
+        flowers = flower_repository.list_flowers(filters, limit, offset)
 
         logger.info("flower_get_all")
         return marshal({
@@ -66,7 +72,7 @@ class FlowerResource(Resource):
     def post(self):
         if(is_over_limit()):
             logger.info("flower_post_over_limit")
-            return "max number of flowers reached, wait for tomorrow", 403
+            return error_response("max number of flowers reached, wait for tomorrow", 403)
         args = flower_post_parser.parse_args()
         path = Path(current_app.config['GENERATED_FOLDER'])
         sharedFlower = request.get_json()
@@ -78,10 +84,11 @@ class FlowerResource(Resource):
             except FlowerEvolverError as e:
                 logger.info("flower_post_make_flower_error", error=str(e))
                 db.session.rollback()
-                return "something went wrong while making the flower.", 400
+                return error_response("something went wrong while making the flower.", 400)
             flower.genome = f"{flower.id}.json"
             flower.image = f"{flower.id}.png"
             db.session.commit()
+            FLOWERS_GENERATED_TOTAL.labels(kind="create").inc()
             kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         logger.info("flower_post_share_flower")
@@ -89,16 +96,17 @@ class FlowerResource(Resource):
             shared_flower = SharedFlower(**sharedFlower)
         except ValidationError as e:
             logger.error("flower_post_share_flower_validation_error", error=str(e))
-            return "error sharing flower, probably bad format.", 400
+            return error_response("error sharing flower, probably bad format.", 400)
         flower = flower_repository.create(**args)
         try:
             drawFlower(flower.id, path.resolve(), json.dumps(shared_flower.model_dump()))
         except FlowerEvolverError as e:
             db.session.rollback()
             logger.error("flower_post_share_flower_draw_error", error=str(e))
-            return "the flower genome file has invalid data.", 400
+            return error_response("the flower genome file has invalid data.", 400)
         flower.genome = f"{flower.id}.json"
         flower.image = f"{flower.id}.png"
         db.session.commit()
+        FLOWERS_GENERATED_TOTAL.labels(kind="share").inc()
         kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
         return marshal(flower, flower_fields)

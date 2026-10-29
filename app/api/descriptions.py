@@ -3,6 +3,7 @@ from flask_restful import Resource, request
 from flask_restful import fields, marshal
 from flask_cors import cross_origin
 from ..repositories import description_repository
+from ..errors import error_response
 from ..pagination import parse_list_args, count_fields
 
 logger = structlog.get_logger(__name__)
@@ -27,18 +28,19 @@ class DescriptionsResource(Resource):
                 logger.info("description_get", desc_id=desc_id)
                 return marshal(res, descriptions_fields)
             logger.info("description_get_not_found", desc_id=desc_id)
-            return f"flower {str(desc_id)} has no description", 404
+            return error_response(f"flower {str(desc_id)} has no description", 404)
 
         filters, limit, offset, count, error = parse_list_args(
             request.args.to_dict(), allowed_filters=('id', 'description'))
         if error:
             logger.info("description_get_invalid_filter", error=error)
-            return error, 400
+            return error_response(error, 400)
 
-        descriptions = description_repository.list_descriptions(filters, limit, offset)
         if count:
             logger.info("description_get_all_count")
-            return marshal({'count': len(descriptions)}, count_fields)
+            return marshal({'count': description_repository.count_descriptions(filters)}, count_fields)
+
+        descriptions = description_repository.list_descriptions(filters, limit, offset)
 
         logger.info("description_get_all")
         return marshal({

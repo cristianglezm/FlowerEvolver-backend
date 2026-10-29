@@ -1,26 +1,35 @@
 # syntax=docker/dockerfile:1
 
+# Stage 1: build a wheel of EVERY dependency. `flowerevolver` (no musl wheels on PyPI) and `mysqlclient`
+# are compiled here, so the compiler never reaches the final image.
 FROM python:3.12-alpine3.24 AS builder
-RUN apk add --no-cache build-base cmake git
+RUN apk add --no-cache build-base cmake git pkgconf mariadb-connector-c-dev
 COPY requirements.txt /tmp/requirements.txt
-RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels $(grep '^flowerevolver==' /tmp/requirements.txt)
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
+# Stage 2: only the runtime libraries (libmariadb for mysqlclient, libstdc++ for flowerevolver)
 FROM python:3.12-alpine3.24 AS backend
-RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
-COPY --from=builder /wheels /wheels
-COPY --chown=fe *.py requirements.txt .env /app/
+RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe && \
+    apk add --no-cache mariadb-connector-c libstdc++
+# the wheels are mounted, not copied: they are not stored in any layer of the final image
+RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
+    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    pip install --no-cache-dir --no-index --find-links /wheels -r /tmp/requirements.txt
+# no .env in the image: pass the settings with `--env-file` / `environment:` (see .env.example)
+COPY --chown=fe *.py /app/
 COPY --chown=fe .devops/reset.sh .devops/entrypoint.sh /app/
 COPY --chown=fe ./app /app/app/
 COPY --chown=fe ./generated /app/generated/
+# the schema history, applied by `flask db upgrade` in reset.sh
+COPY --chown=fe ./migrations /app/migrations/
 WORKDIR /app
+# the volumes below start with the content and owner of these folders
 RUN chmod +x ./entrypoint.sh && \
-     apk update && apk add --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ && rm -rf /var/cache/apk/* && \
-     pip install --no-cache-dir --find-links /wheels -r requirements.txt && \
-     pip install --no-cache-dir gunicorn
+    mkdir -p /app/db /app/instance && \
+    chown fe:fe /app /app/db /app/instance
 USER fe:fe
 # db is for dev mode only.
-VOLUME /app/generated /app/migrations /app/db
+VOLUME /app/generated /app/db
 ENV FLASK_APP=manage.py
-RUN sh reset.sh
 EXPOSE 5000/tcp
 ENTRYPOINT ["./entrypoint.sh"]

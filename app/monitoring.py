@@ -2,13 +2,40 @@ import os
 import structlog
 from flask import Blueprint, jsonify, request, Response, current_app
 from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, CollectorRegistry, multiprocess
+from prometheus_client.core import GaugeMetricFamily
 from sqlalchemy import text
 from . import db
 from .background import kafka_producer, kafka_consumer
+from .repositories import flower_repository, description_repository
 
 logger = structlog.get_logger(__name__)
 
 monitoring_blueprint = Blueprint('monitoring', __name__)
+
+
+class DatabaseGauges:
+    """flowers_total, descriptions_total and flower_limit, computed when /metrics is scraped."""
+
+    def __init__(self, app):
+        self.app = app
+
+    def collect(self):
+        try:
+            with self.app.app_context():
+                flowers = flower_repository.total_count()
+                descriptions = description_repository.total_count()
+                limit = int(self.app.config['FLOWER_LIMIT'])
+        except Exception as e:
+            # no gauges is better than a failed scrape, the up/health metrics tell about the db
+            logger.error("metrics_database_gauges_failed", error=str(e))
+            return
+        for name, doc, value in (
+                ("flowers_total", "Flowers stored in the database.", flowers),
+                ("descriptions_total", "Descriptions stored in the database.", descriptions),
+                ("flower_limit", "Flowers allowed before new ones are refused (FLOWER_LIMIT).", limit)):
+            gauge = GaugeMetricFamily(name, doc)
+            gauge.add_metric([], value)
+            yield gauge
 
 
 @monitoring_blueprint.route('/healthz')
@@ -36,14 +63,24 @@ def _database_status():
 
 
 def _kafka_status():
+    """not_configured | ok | connecting | error
+
+    ok          the producer and the consumer of this worker are connected to the cluster
+    connecting  they are still starting (kafka and the other services start slowly)
+    error       a thread died or the last connection attempt failed
+    """
     if not current_app.config['KAFKA_ENABLED']:
         return 'not_configured'
-    producer = kafka_producer.get_producer()
-    if producer is None or not producer.bootstrap_connected():
+    if kafka_producer.is_connected() and kafka_consumer.is_connected():
+        return 'ok'
+    if not (kafka_producer.is_alive() or kafka_producer.is_connected()) or not kafka_consumer.is_alive():
+        logger.error("health_kafka_thread_not_running")
         return 'error'
-    if not kafka_consumer.is_alive():
+    error = kafka_producer.last_error() if not kafka_producer.is_connected() else kafka_consumer.last_error()
+    if error:
+        logger.warning("health_kafka_not_connected", error=error)
         return 'error'
-    return 'ok'
+    return 'connecting'
 
 
 def _redis_status():
@@ -89,4 +126,8 @@ def metrics():
     else:
         registry = REGISTRY
     logger.info("metrics_scraped")
-    return Response(generate_latest(registry), mimetype=CONTENT_TYPE_LATEST)
+    # the capacity gauges are read from the database at scrape time, so they are exact and
+    # do not depend on which worker made the flowers (counters are summed across workers)
+    database_registry = CollectorRegistry()
+    database_registry.register(DatabaseGauges(current_app._get_current_object()))
+    return Response(generate_latest(registry) + generate_latest(database_registry), mimetype=CONTENT_TYPE_LATEST)

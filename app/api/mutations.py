@@ -8,6 +8,8 @@ from ..repositories import flower_repository, mutation_repository
 from ..pagination import parse_list_args, count_fields
 from ..services.flower_evolver import mutateFlower, FlowerEvolverError
 from ..background import kafka_producer
+from ..errors import error_response
+from ..metrics import FLOWERS_GENERATED_TOTAL
 from .. import db
 from .flowers import flower_fields, is_over_limit
 
@@ -35,29 +37,31 @@ class MutationResource(Resource):
         if mutation_original:
             filters, limit, offset, count, error = parse_list_args(request.args.to_dict())
             if error:
-                return error, 400
+                return error_response(error, 400)
 
-            res = mutation_repository.list_by_original(mutation_original, limit, offset)
             if count:
                 logger.info("mutation_get_count", original=mutation_original)
-                return marshal({'count': len(res)}, count_fields)
+                return marshal({'count': mutation_repository.count_by_original(mutation_original)}, count_fields)
+
+            res = mutation_repository.list_by_original(mutation_original, limit, offset)
 
             if res:
                 logger.info("mutation_get_by_original", original=mutation_original)
                 return marshal(res, flower_fields)
             logger.info("mutation_get_by_original_not_found", original=mutation_original)
-            return f"flower {str(mutation_original)} has no mutations", 404
+            return error_response(f"flower {str(mutation_original)} has no mutations", 404)
         else:
             filters, limit, offset, count, error = parse_list_args(
                 request.args.to_dict(), allowed_filters=('id', 'original'))
             if error:
                 logger.info("mutation_get_invalid_filter", error=error)
-                return error, 400
+                return error_response(error, 400)
 
-            mutations = mutation_repository.list_mutations(filters, limit, offset)
             if count:
                 logger.info("mutation_get_all_count")
-                return marshal({'count': len(mutations)}, count_fields)
+                return marshal({'count': mutation_repository.count_mutations(filters)}, count_fields)
+
+            mutations = mutation_repository.list_mutations(filters, limit, offset)
 
             logger.info("mutation_get_all")
             return marshal({
@@ -67,9 +71,9 @@ class MutationResource(Resource):
 
     @cross_origin()
     def post(self):
-        if(is_over_limit()):
+        if(is_over_limit('mutation')):
             logger.info("mutation_post_over_limit")
-            return "max number of flowers reached, wait for tomorrow", 403
+            return error_response("max number of flowers reached, wait for tomorrow", 403)
         args = mutation_post_parser.parse_args()
         mutation = mutation_repository.new_mutation(**args)
         if Path(f"{current_app.config['GENERATED_FOLDER']}/{str(mutation.original)}.json").exists():
@@ -83,11 +87,12 @@ class MutationResource(Resource):
             except FlowerEvolverError as e:
                 db.session.rollback()
                 logger.info("mutation_post_error", original=mutation.original, error=str(e))
-                return f"Something went wrong when making mutations with original {mutation.original}", 400
+                return error_response(f"Something went wrong when making mutations with original {mutation.original}", 400)
             mutation_repository.save(mutation)
             logger.info("mutation_post_success", original=mutation.original, id=mutation.id)
+            FLOWERS_GENERATED_TOTAL.labels(kind="mutation").inc()
             kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         else:
             logger.info("mutation_post_original_not_found", original=mutation.original)
-            return f"original {str(mutation.original)} does not exists", 404
+            return error_response(f"original {str(mutation.original)} does not exists", 404)

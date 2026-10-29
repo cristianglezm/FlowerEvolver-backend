@@ -1,62 +1,210 @@
 #!/bin/sh
-# will delete generated content of the day and the database
+# Start up script of the containers and daily reset job (run it from cron).
+#
+# The schema comes from the committed migrations (migrations/versions), this script only
+# applies them with `flask db upgrade`. It never creates revisions: after changing a model
+# run `flask db migrate -m "what changed"` on your machine, review the new file in
+# migrations/versions and commit it.
+#
+# The flower rows and generated/<id>.png|json are tied by the flower id (mutations and
+# descendants read the .json of the parent), so they are always reset together:
+#   - generated/            images and genomes
+#   - MySQL database $DB_NAME on $DB_HOST: dropped and created again (ENV=production only)
+#   - db/                   sqlite files, used when ENV is not production
+#
+# What is reset depends on ENV, because the compose stack runs this on EVERY container start
+# and keeps db_data and generated_data volumes so that a restart keeps the flowers:
+#   ENV=production   keeps the data. Waits for MySQL, checks that DB_USER can log in
+#                    (any MySQL problem is fatal), then upgrades the schema.
+#   any other ENV    resets db/ (sqlite) and generated/. MySQL is NEVER touched outside
+#                    production, even if DB_* are set (they are in .env by default).
+# RESET_DATA=true|false overrides that, e.g. a daily reset of a production setup:
+#   ENV=production RESET_DATA=true sh .devops/reset.sh   (waits for MySQL, wipes, upgrades MySQL)
+#
+# Run it from the repo root (relative paths); `flask` and `python` must be on the PATH.
+# Settings already present in the environment (docker compose, the shell, a scheduler)
+# always win over .env, the same rule python-dotenv applies when the app loads .env.
+#
+# Optional:
+#   RESET_DATA=true|false  see above
+#   REWRITE_ENV=true       write .env from the current environment before anything else
+#   MYSQL_WAIT_TRIES=60    tries (5 s apart) to reach MySQL before giving up (production)
+
+log() { echo "reset.sh: $*"; }
+die() { echo "reset.sh: ERROR: $*" >&2; exit 1; }
+
+if [ ! -f manage.py ]
+then
+  die "manage.py not found in $(pwd), run this script from the repo root"
+fi
+command -v flask > /dev/null 2>&1 || die "flask is not on the PATH (activate the virtualenv?)"
+command -v python > /dev/null 2>&1 || die "python is not on the PATH"
+
 if [ "$REWRITE_ENV" = "true" ]
 then
-  echo "rewriting env file..."
-  echo "HOST=$HOST" > .env
-  echo "DB=$DB" >> .env
-  echo "PASSWD=$PASSWD" >> .env
-  echo "USER=$USER" >> .env
-  echo "ENV=$ENV" >> .env
-  echo "ORIGINS=$ORIGINS" >> .env
-  echo "FLOWER_LIMIT=$FLOWER_LIMIT" >> .env
-  echo "SECRET_KEY=$SECRET_KEY" >> .env
-  echo "KAFKA_ENABLED=$KAFKA_ENABLED" >> .env
-  echo "KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS" >> .env
-  echo "KAFKA_REQUEST_TOPIC=$KAFKA_REQUEST_TOPIC" >> .env
-  echo "KAFKA_RESPONSE_TOPIC=$KAFKA_RESPONSE_TOPIC" >> .env
-  echo "REDIS_ENABLED=$REDIS_ENABLED" >> .env
-  echo "REDIS_URL=$REDIS_URL" >> .env
-  echo "RATE_LIMIT_TIMES=$RATE_LIMIT_TIMES" >> .env
-  echo "RATE_LIMIT_SECONDS=$RATE_LIMIT_SECONDS" >> .env
-  echo "METRICS_API_KEY=$METRICS_API_KEY" >> .env
+  log "rewriting .env from the environment"
+  {
+    echo "DB_HOST=$DB_HOST"
+    echo "DB_NAME=$DB_NAME"
+    echo "DB_USER=$DB_USER"
+    echo "DB_PASSWD=$DB_PASSWD"
+    echo "ENV=$ENV"
+    echo "ORIGINS=$ORIGINS"
+    echo "FLOWER_LIMIT=$FLOWER_LIMIT"
+    echo "SECRET_KEY=$SECRET_KEY"
+    echo "KAFKA_ENABLED=$KAFKA_ENABLED"
+    echo "KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS"
+    echo "KAFKA_REQUEST_TOPIC=$KAFKA_REQUEST_TOPIC"
+    echo "KAFKA_RESPONSE_TOPIC=$KAFKA_RESPONSE_TOPIC"
+    echo "REDIS_ENABLED=$REDIS_ENABLED"
+    echo "REDIS_URL=$REDIS_URL"
+    echo "RATE_LIMIT_TIMES=$RATE_LIMIT_TIMES"
+    echo "RATE_LIMIT_SECONDS=$RATE_LIMIT_SECONDS"
+    echo "METRICS_API_KEY=$METRICS_API_KEY"
+  } > .env
 fi
+
 if [ -f .env ]
 then
-  echo "exporting .env file..."
-  export $(cat .env | sed 's/#.*//g' | xargs)
-fi
-if [ "$ENV" != "production" ]
-then
-# rm db sqlite
-  if [ -d db ]
-  then
-    echo "removing db"
-    rm -R db/*
-    echo "removed db"
-  else
-    mkdir db
-    echo "made folder db"
-  fi
-# reset mysql db and images and genomes of flowers
-  rm generated/*.png generated/*.json
-#  echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
-fi
-export FLASK_APP=manage.py
-if [ "$ENV" = "production" ]
-then
-  echo "waiting for MySQL"
-  until nc -z -v -w30 ${HOST} 3306
+  log "loading defaults from .env (variables already set are kept)"
+  while IFS='=' read -r key value || [ -n "$key" ]
   do
-    echo "MySQL is unavailable - sleeping"
+    case "$key" in
+      ''|'#'*|*[!A-Za-z0-9_]*|[0-9]*) continue ;;
+    esac
+    if [ -z "$(eval "printf '%s' \"\${$key+set}\"")" ]
+    then
+      value=$(printf '%s' "$value" | sed -e 's/[[:space:]]*#.*$//' -e "s/^[\"']//" -e "s/[\"']\$//")
+      export "$key=$value"
+    fi
+  done < .env
+fi
+
+# The database settings are DB_HOST, DB_NAME, DB_USER and DB_PASSWD. The old names (HOST, DB, USER and
+# PASSWD) are not read anymore: they are generic (USER is the login name of the shell user, and docker
+# compose prefers the shell over .env). A leftover old .env is reported in production below.
+export FLASK_APP=manage.py
+
+# mysql_check: can ${DB_USER} log in to ${DB_NAME}?   mysql_reset: drop and create ${DB_NAME}
+# exit codes: 0 ok, 1 not reachable yet (retry), 2 refused (credentials/privileges), 3 no mysqlclient
+mysql_task() {
+  python - "$1" <<'PY'
+import os, sys
+try:
+    import MySQLdb
+except ImportError:
+    print("mysqlclient is not installed", file=sys.stderr)
+    sys.exit(3)
+task = sys.argv[1]
+db = os.environ["DB_NAME"]
+try:
+    conn = MySQLdb.connect(host=os.environ["DB_HOST"], user=os.environ["DB_USER"],
+                           passwd=os.environ["DB_PASSWD"], connect_timeout=5,
+                           **({"db": db} if task == "check" else {}))
+    if task == "reset":
+        cur = conn.cursor()
+        cur.execute(f"DROP DATABASE IF EXISTS `{db}`")
+        cur.execute(f"CREATE DATABASE `{db}`")
+    conn.close()
+except MySQLdb.OperationalError as e:
+    print(f"{e.args[0]}: {e.args[1] if len(e.args) > 1 else e}", file=sys.stderr)
+    sys.exit(2 if e.args[0] in (1044, 1045, 1049, 1142) else 1)
+PY
+}
+
+wait_for_mysql() {
+  tries="${MYSQL_WAIT_TRIES:-60}"
+  attempt=1
+  denied=0
+  while [ "$attempt" -le "$tries" ]
+  do
+    mysql_task check
+    status=$?
+    case "$status" in
+      0) log "MySQL is up and ${DB_USER}@${DB_HOST}/${DB_NAME} can log in"; return 0 ;;
+      3) return 1 ;;
+      2)
+        # the mysql image only accepts connections after it created its user, so a few
+        # refusals can still be a start up race, many are a real credentials problem
+        denied=$((denied + 1))
+        if [ "$denied" -ge 3 ]
+        then
+          echo "reset.sh: ERROR: MySQL is reachable but refuses ${DB_USER}@${DB_HOST}/${DB_NAME}." >&2
+          echo "  - DB_USER / DB_PASSWD / DB_NAME here must be the ones MySQL was created with." >&2
+          echo "  - the mysql image creates its user only when its data volume is empty:" >&2
+          echo "    after changing them run 'compose down -v' to drop the db volume." >&2
+          echo "  - docker compose reads \${DB_USER} from the shell before .env, check" >&2
+          echo "    'compose config | grep MYSQL_' shows the same user." >&2
+          return 1
+        fi
+        ;;
+      *) denied=0 ;;
+    esac
+    log "MySQL not ready at ${DB_HOST}:3306 (attempt ${attempt}/${tries}), sleeping"
+    attempt=$((attempt + 1))
     sleep 5
   done
-fi
-# migrations don't need the kafka consumer or redis
-export KAFKA_ENABLED=false REDIS_ENABLED=false
-if [ ! -d migrations ]
+  echo "reset.sh: ERROR: gave up waiting for MySQL at ${DB_HOST}:3306" >&2
+  return 1
+}
+
+reset_mysql() {
+  log "dropping and creating the MySQL database ${DB_NAME} on ${DB_HOST}"
+  mysql_task reset
+}
+
+if [ "$ENV" = "production" ]
 then
-  flask db init
+  RESET_DATA="${RESET_DATA:-false}"
+else
+  RESET_DATA="${RESET_DATA:-true}"
 fi
-flask db migrate
-flask db upgrade
+
+if [ "$ENV" = "production" ]
+then
+  for var in DB_HOST DB_NAME DB_USER DB_PASSWD
+  do
+    eval "value=\${$var}"
+    if [ -z "$value" ]
+    then
+      hint=""
+      [ -n "$HOST$DB$PASSWD" ] && hint=" (HOST, DB and PASSWD are the old names, rename them in .env to DB_HOST, DB_NAME and DB_PASSWD)"
+      die "$var is empty or not set, ENV=production needs DB_HOST, DB_NAME, DB_USER and DB_PASSWD$hint"
+    fi
+  done
+  if [ "$DB_HOST" = "localhost" ] || [ "$DB_HOST" = "127.0.0.1" ]
+  then
+    log "warning: DB_HOST=$DB_HOST, inside a container the database is another host (compose sets DB_HOST=db)"
+  fi
+  log "production: ${DB_USER}@${DB_HOST}/${DB_NAME}, kafka=${KAFKA_ENABLED:-false}, redis=${REDIS_ENABLED:-false}, reset=${RESET_DATA}"
+  wait_for_mysql || exit 1
+  if [ "$RESET_DATA" = "true" ]
+  then
+    rm -f generated/*.png generated/*.json
+    log "removed generated files"
+    reset_mysql || die "could not reset the MySQL database (does ${DB_USER} have DROP/CREATE on ${DB_NAME}?)"
+  fi
+else
+  log "ENV=${ENV:-development}: sqlite database, reset=${RESET_DATA}"
+  if [ "$RESET_DATA" = "true" ]
+  then
+    if [ -d db ]
+    then
+      rm -rf db/*
+      log "removed db"
+    else
+      mkdir db
+      log "made folder db"
+    fi
+    rm -f generated/*.png generated/*.json
+    log "removed generated files"
+  fi
+fi
+
+# the schema only needs the database: no kafka consumer, no redis and no prometheus multiprocess files
+# (the container sets PROMETHEUS_MULTIPROC_DIR, but entrypoint.sh creates that folder after this script)
+export KAFKA_ENABLED=false REDIS_ENABLED=false
+unset PROMETHEUS_MULTIPROC_DIR
+[ -f migrations/env.py ] || die "migrations/ not found in $(pwd): it is committed to the repo, was it left out of the image?"
+flask db upgrade || die "flask db upgrade failed"
+log "done"

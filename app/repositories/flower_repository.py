@@ -15,6 +15,11 @@ def list_flowers(filters, limit=0, offset=0):
     return query.all()
 
 
+def count_flowers(filters):
+    """All the flowers that match, whatever limit and offset a page uses."""
+    return Flower.query.filter_by(**filters).count()
+
+
 def total_count():
     return Flower.query.count()
 

@@ -4,7 +4,6 @@ __pycache__
 *.pyc
 .idea
 .DS_Store
-migrations
 instance
 db
 generated/*.png
@@ -15,3 +14,6 @@ docker/grafana
 docker/prometheus
 .venv
 venv
+.env
+.env.*
+!.env.example

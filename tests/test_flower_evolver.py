@@ -6,7 +6,7 @@ from app.services.flower_evolver import (makeFlower, drawFlower, mutateFlower, r
                                          FlowerEvolverError, Params)
 
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
-LEGACY_GENOME = Path(__file__).parent / 'data' / 'legacy_binary_genome.json'
+SAMPLE_GENOME = Path(__file__).parent / 'data' / 'sample_genome.json'
 
 
 def invocations(operation, status):
@@ -26,8 +26,8 @@ def test_make_flower_respects_params(tmp_path):
     assert petals['numLayers'] == 2
 
 
-def test_legacy_binary_genome_is_still_usable(tmp_path):
-    genome = LEGACY_GENOME.read_text()
+def test_sample_genome_works_with_every_operation(tmp_path):
+    genome = SAMPLE_GENOME.read_text()
     drawFlower(1, tmp_path, genome)
     makeFlower(2, tmp_path)
     reproduce(1, 2, 3, tmp_path)
@@ -37,7 +37,7 @@ def test_legacy_binary_genome_is_still_usable(tmp_path):
 
 
 def test_draw_flower_rejects_invalid_genome(tmp_path):
-    genome = json.loads(LEGACY_GENOME.read_text())
+    genome = json.loads(SAMPLE_GENOME.read_text())
     genome['Flower']['dna']['genomes'] = genome['Flower']['dna']['genomes'][:1]
     with pytest.raises(FlowerEvolverError):
         drawFlower(1, tmp_path, json.dumps(genome))

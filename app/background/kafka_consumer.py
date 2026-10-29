@@ -10,6 +10,8 @@ logger = structlog.get_logger(__name__)
 
 _thread = None
 _stop_event = threading.Event()
+_connected = threading.Event()
+_last_error = None
 _RETRY_DELAY_SECONDS = 5
 
 
@@ -58,6 +60,8 @@ def _consume_once(app):
         value_deserializer=lambda v: json.loads(v.decode('utf-8')),
         consumer_timeout_ms=1000,
     )
+    _connected.set()
+    _record_error(None)
     logger.info("kafka_consumer_started", topic=topic)
     try:
         while not _stop_event.is_set():
@@ -66,8 +70,14 @@ def _consume_once(app):
                 if _stop_event.is_set():
                     break
     finally:
+        _connected.clear()
         consumer.close()
         logger.info("kafka_consumer_stopped", topic=topic)
+
+
+def _record_error(e):
+    global _last_error
+    _last_error = None if e is None else str(e)
 
 
 def _consume_loop(app):
@@ -75,6 +85,7 @@ def _consume_loop(app):
         try:
             _consume_once(app)
         except Exception as e:
+            _record_error(e)
             logger.warning("kafka_consumer_connection_failed", error=str(e), retry_in=_RETRY_DELAY_SECONDS)
             _stop_event.wait(_RETRY_DELAY_SECONDS)
 
@@ -85,6 +96,7 @@ def start_consumer(app):
         logger.info("kafka_consumer_disabled")
         return None
     _stop_event.clear()
+    _connected.clear()
     _thread = threading.Thread(target=_consume_loop, args=(app,), daemon=True, name='kafka-consumer')
     _thread.start()
     return _thread
@@ -96,3 +108,11 @@ def stop_consumer():
 
 def is_alive():
     return _thread is not None and _thread.is_alive()
+
+
+def is_connected():
+    return is_alive() and _connected.is_set()
+
+
+def last_error():
+    return _last_error

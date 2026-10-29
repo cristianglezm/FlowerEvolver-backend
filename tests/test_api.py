@@ -4,7 +4,7 @@ from pathlib import Path
 from app import create_app
 
 base_url = "/api"
-LEGACY_GENOME = Path(__file__).parent / 'data' / 'legacy_binary_genome.json'
+SAMPLE_GENOME = Path(__file__).parent / 'data' / 'sample_genome.json'
 
 
 @pytest.fixture
@@ -49,13 +49,13 @@ class TestFlowers:
             response = client.post(f"{base_url}/flowers", json=flower_data)
             assert_response_status(response, 400)
 
-    def test_share_legacy_binary_flower(self, client):
-        with LEGACY_GENOME.open('r') as file:
+    def test_share_flower_with_a_genome(self, client):
+        with SAMPLE_GENOME.open('r') as file:
             response = client.post(f"{base_url}/flowers", json=json.load(file))
             assert_response_status(response, 200)
 
     def test_share_flower_with_single_genome(self, client):
-        with LEGACY_GENOME.open('r') as file:
+        with SAMPLE_GENOME.open('r') as file:
             flower_data = json.load(file)
             flower_data['Flower']['dna']['genomes'] = flower_data['Flower']['dna']['genomes'][:1]
             response = client.post(f"{base_url}/flowers", json=flower_data)
@@ -70,6 +70,33 @@ class TestFlowers:
         response = client.get(f"{base_url}/flowers?count=1")
         assert_response_status(response, 200)
         assert_response_json_types(response, [("count", int)])
+
+    def test_flowers_count_is_the_total_and_ignores_limit_and_offset(self, client):
+        client.post(f"{base_url}/flowers", json={})
+        client.post(f"{base_url}/flowers", json={})
+        total = len(client.get(f"{base_url}/flowers").json["flowers"])
+        assert total >= 2
+        assert client.get(f"{base_url}/flowers?count=1").json == {"count": total}
+        assert client.get(f"{base_url}/flowers?count=1&limit=1&offset=1").json == {"count": total}
+        page = client.get(f"{base_url}/flowers?limit=1&offset=1").json
+        assert len(page["flowers"]) == 1
+
+    def test_flowers_count_zero_or_false_is_off(self, client):
+        for value in ("0", "false"):
+            response = client.get(f"{base_url}/flowers?count={value}")
+            assert_response_status(response, 200)
+            assert_response_json_types(response, [("count", int), ("flowers", list)])
+
+    def test_flower_limit_is_the_max_number_of_flowers(self, app, client):
+        from app.repositories import flower_repository
+        with app.app_context():
+            total = flower_repository.total_count()
+        app.config["FLOWER_LIMIT"] = total
+        assert_response_status(client.post(f"{base_url}/flowers", json={}), 403)
+        app.config["FLOWER_LIMIT"] = total + 1
+        assert_response_status(client.post(f"{base_url}/flowers", json={}), 200)
+        app.config["FLOWER_LIMIT"] = total + 1
+        assert_response_status(client.post(f"{base_url}/flowers", json={}), 403)
 
     def test_get_flower_by_id(self, client):
         response = client.get(f"{base_url}/flowers/1")

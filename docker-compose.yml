@@ -3,11 +3,13 @@ services:
     build:
       context: .
       dockerfile: dockerfile.alpine
-    image: "docker.io/cristianglezm/fe:backend-alpine-dev"
+    # BACKEND_IMAGE lets the CI run the image it just built; without it the published image is used
+    image: "${BACKEND_IMAGE:-docker.io/cristianglezm/fe:backend-alpine-dev}"
     hostname: app
     container_name: app
     ports:
       - "5000:5000"
+    # cp .env.example .env first (the file is not committed). The values of `environment:` win over it.
     env_file:
       - .env
     depends_on:
@@ -19,7 +21,7 @@ services:
         condition: service_healthy
     environment:
       - ENV=production
-      - HOST=db
+      - DB_HOST=db
       - REDIS_ENABLED=true
       - REDIS_URL=redis://redis:6379
       - KAFKA_ENABLED=true
@@ -31,14 +33,15 @@ services:
       - internal
 
   db:
-    image: "mysql:8.0"
+    image: "mysql:8.4"
     hostname: db
     container_name: db
     environment:
-      - MYSQL_DATABASE=${DB}
-      - MYSQL_USER=${USER}
-      - MYSQL_PASSWORD=${PASSWD}
-      - MYSQL_ROOT_PASSWORD=${PASSWD}
+      # the mysql image creates this user with ALL privileges on MYSQL_DATABASE, nothing else to set up
+      - MYSQL_DATABASE=${DB_NAME}
+      - MYSQL_USER=${DB_USER}
+      - MYSQL_PASSWORD=${DB_PASSWD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWD}
     volumes:
       - db_data:/var/lib/mysql:Z
     healthcheck:
@@ -152,8 +155,9 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      # :z relabels the files for SELinux hosts (Fedora/RHEL podman), ignored elsewhere
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro,z
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -172,8 +176,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
-      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro,z
+      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro,z
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus
