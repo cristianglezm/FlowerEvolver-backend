@@ -7,6 +7,7 @@ from flask import current_app
 from ..repositories import flower_repository, descendant_repository
 from ..pagination import parse_list_args, count_fields
 from ..services.flower_evolver import reproduce
+from ..background import kafka_producer
 from .. import db
 from .flowers import flower_fields, is_over_limit
 
@@ -104,6 +105,7 @@ class DescendantResource(Resource):
                 return f"Something went wrong then repoducing flowers with id {descendant.father} and {descendant.mother}", 400
             descendant_repository.save(descendant)
             logger.info("descendant_post_reproduce", father=descendant.father, mother=descendant.mother, id=descendant.id)
+            kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         else:
             logger.info("descendant_post_parents_not_found", father=descendant.father, mother=descendant.mother)

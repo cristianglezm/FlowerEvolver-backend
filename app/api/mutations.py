@@ -7,6 +7,7 @@ from flask import current_app
 from ..repositories import flower_repository, mutation_repository
 from ..pagination import parse_list_args, count_fields
 from ..services.flower_evolver import mutateFlower
+from ..background import kafka_producer
 from .. import db
 from .flowers import flower_fields, is_over_limit
 
@@ -84,6 +85,7 @@ class MutationResource(Resource):
                 return f"Something went wrong when making mutations with original {mutation.original}", 400
             mutation_repository.save(mutation)
             logger.info("mutation_post_success", original=mutation.original, id=mutation.id)
+            kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         else:
             logger.info("mutation_post_original_not_found", original=mutation.original)

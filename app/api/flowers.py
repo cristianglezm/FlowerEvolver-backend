@@ -12,6 +12,7 @@ from ..schemas import SharedFlower
 from ..services.flower_evolver import makeFlower, drawFlower
 from ..repositories import flower_repository
 from ..pagination import parse_list_args, count_fields
+from ..background import kafka_producer
 from .. import db
 
 logger = structlog.get_logger(__name__)
@@ -87,6 +88,7 @@ class FlowerResource(Resource):
             flower.genome = f"{flower.id}.json"
             flower.image = f"{flower.id}.png"
             db.session.commit()
+            kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         logger.info("flower_post_share_flower")
         try:
@@ -109,4 +111,5 @@ class FlowerResource(Resource):
         flower.image = f"{flower.id}.png"
         db.session.commit()
         tmpFlower.unlink()
+        kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
         return marshal(flower, flower_fields)
