@@ -21,10 +21,12 @@ ENV PATH="/opt/venv/bin:$PATH"
 RUN pip install --no-cache-dir --upgrade pip setuptools wheel
 RUN pip install --no-cache-dir -r requirements.txt && \
     pip install --no-cache-dir gunicorn
+# the volumes below start with the content and owner of these folders
+RUN mkdir -p /app/db /app/migrations /app/instance && \
+    chown fe:fe /app /app/db /app/migrations /app/instance
 USER fe
 # db is for dev mode only.
 VOLUME /app/generated /app/migrations /app/db
 ENV FLASK_APP=manage.py
-RUN sh reset.sh
 EXPOSE 5000/tcp
 ENTRYPOINT ["./entrypoint.sh"]

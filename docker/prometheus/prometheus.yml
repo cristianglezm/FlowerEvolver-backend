@@ -11,6 +11,7 @@ scrape_configs:
       # service name and port defined in docker-compose.yml
       - targets: ['app:5000']
     authorization:
+      # must match METRICS_API_KEY (see the comment in .env for every place to change)
       credentials: "passwd"
 
   - job_name: 'redis'

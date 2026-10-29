@@ -21,10 +21,23 @@ then
   echo "RATE_LIMIT_SECONDS=$RATE_LIMIT_SECONDS" >> .env
   echo "METRICS_API_KEY=$METRICS_API_KEY" >> .env
 fi
+# .env only provides defaults: a variable that is already set in the environment
+# always wins.
+# This is the same rule python-dotenv applies when the app loads .env.
 if [ -f .env ]
 then
-  echo "exporting .env file..."
-  export $(cat .env | sed 's/#.*//g' | xargs)
+  echo "loading defaults from .env..."
+  while IFS='=' read -r key value || [ -n "$key" ]
+  do
+    case "$key" in
+      ''|'#'*|*[!A-Za-z0-9_]*|[0-9]*) continue ;;
+    esac
+    if [ -z "$(eval "printf '%s' \"\${$key+set}\"")" ]
+    then
+      value=$(printf '%s' "$value" | sed -e 's/[[:space:]]*#.*$//' -e "s/^[\"']//" -e "s/[\"']\$//")
+      export "$key=$value"
+    fi
+  done < .env
 fi
 if [ "$ENV" != "production" ]
 then
@@ -32,21 +45,21 @@ then
   if [ -d db ]
   then
     echo "removing db"
-    rm -R db/*
+    rm -rf db/*
     echo "removed db"
   else
     mkdir db
     echo "made folder db"
   fi
 # reset mysql db and images and genomes of flowers
-  rm generated/*.png generated/*.json
-#  echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
+  rm -f generated/*.png generated/*.json
+  echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
 fi
 export FLASK_APP=manage.py
 if [ "$ENV" = "production" ]
 then
   echo "waiting for MySQL"
-  until nc -z -v -w30 ${HOST} 3306
+  until python -c "import socket, sys; socket.create_connection((sys.argv[1], 3306), timeout=5).close()" "${HOST}" 2>/dev/null
   do
     echo "MySQL is unavailable - sleeping"
     sleep 5
@@ -54,9 +67,12 @@ then
 fi
 # migrations don't need the kafka consumer or redis
 export KAFKA_ENABLED=false REDIS_ENABLED=false
-if [ ! -d migrations ]
+if [ ! -f migrations/env.py ]
 then
   flask db init
+else
+  # bring the database to the last known revision, `flask db migrate` refuses to run otherwise
+  flask db upgrade
 fi
 flask db migrate
-flask db upgrade
+flask db upgrade || exit 1
