@@ -7,7 +7,7 @@ import logging
 from logging.handlers import RotatingFileHandler
 
 load_dotenv('.env')
-app = create_app(start_background=False)
+app = create_app()
 
 os.makedirs('instance', exist_ok=True)
 handler = RotatingFileHandler('instance/app.log', maxBytes=100000, backupCount=1)

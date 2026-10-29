@@ -25,7 +25,7 @@ jobs:
     - name: Run tests
       run: |
         sh reset.sh
-        export FLASK_APP=FlowerEvolver.py
+        export FLASK_APP=manage.py
         python -m pytest
 
     - name: Run Lint

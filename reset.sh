@@ -42,7 +42,7 @@ then
   rm generated/*.png generated/*.json
 #  echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
 fi
-export FLASK_APP=FlowerEvolver.py
+export FLASK_APP=manage.py
 if [ "$ENV" = "production" ]
 then
   echo "waiting for MySQL"
@@ -52,6 +52,8 @@ then
     sleep 5
   done
 fi
+# migrations don't need the kafka consumer or redis
+export KAFKA_ENABLED=false REDIS_ENABLED=false
 if [ ! -d migrations ]
 then
   flask db init

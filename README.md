@@ -45,7 +45,7 @@ METRICS_API_KEY='sk_change_key'
 ```
 
 * Run following commands:
-    - export FLASK_APP=FlowerEvolver.py
+    - export FLASK_APP=manage.py
     - flask db init
     - flask db migrate
     - flask db upgrade

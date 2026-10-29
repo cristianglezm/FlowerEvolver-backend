@@ -23,7 +23,7 @@ RUN pip install --no-cache-dir -r requirements.txt && \
 USER fe
 # db is for dev mode only.
 VOLUME /app/generated /app/migrations /app/db
-ENV FLASK_APP=FlowerEvolver.py
+ENV FLASK_APP=manage.py
 RUN sh reset.sh
 EXPOSE 5000/tcp
 ENTRYPOINT ["./entrypoint.sh"]
