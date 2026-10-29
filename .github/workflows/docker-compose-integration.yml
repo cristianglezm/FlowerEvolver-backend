@@ -65,7 +65,7 @@ jobs:
         run: |
           set -euo pipefail
           echo "[INFO] Running E2E API tests..."
-          if python e2e_test.py; then
+          if python tests/e2e/e2e_test.py; then
             echo "[OK] E2E API tests passed"
           else
             echo "[FAIL] E2E API tests failed"

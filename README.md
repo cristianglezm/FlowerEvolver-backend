@@ -97,7 +97,8 @@ are deployed separately (describe's ONNX models are too large for the free tier 
 currently use for the backend), so in production they don't share the same Redis or
 Kafka instance the way this compose file does for convenience.
 
-`e2e_test.py` exercises this stack over real HTTP, including waiting for a description
+`tests/e2e/e2e_test.py` exercises this stack over real HTTP (it is not part of the pytest run,
+run it directly with `python tests/e2e/e2e_test.py` once the stack is up), including waiting for a description
 to come back through the full backend -> Kafka -> describe -> Kafka -> backend round trip.
 
 ## Monitoring endpoints ##

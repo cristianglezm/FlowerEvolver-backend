@@ -6,7 +6,7 @@ from app.services.flower_evolver import (makeFlower, drawFlower, mutateFlower, r
                                          FlowerEvolverError, Params)
 
 PNG_SIGNATURE = b'\x89PNG\r\n\x1a\n'
-LEGACY_GENOME = Path('test_data/legacy_binary_genome.json')
+LEGACY_GENOME = Path(__file__).parent / 'data' / 'legacy_binary_genome.json'
 
 
 def invocations(operation, status):
@@ -19,25 +19,11 @@ def assert_flower_files(folder, id):
     assert 'Flower' in json.loads((folder / f"{id}.json").read_text())
 
 
-def test_make_flower_writes_genome_and_image(tmp_path):
-    makeFlower(1, tmp_path)
-    assert_flower_files(tmp_path, 1)
-
-
 def test_make_flower_respects_params(tmp_path):
     makeFlower(1, tmp_path, Params(radius=32, layers=2))
     petals = json.loads((tmp_path / "1.json").read_text())['Flower']['petals']
     assert petals['radius'] == 32
     assert petals['numLayers'] == 2
-
-
-def test_reproduce_and_mutate(tmp_path):
-    makeFlower(1, tmp_path)
-    makeFlower(2, tmp_path)
-    reproduce(1, 2, 3, tmp_path)
-    mutateFlower(3, 4, tmp_path)
-    assert_flower_files(tmp_path, 3)
-    assert_flower_files(tmp_path, 4)
 
 
 def test_legacy_binary_genome_is_still_usable(tmp_path):

@@ -3,9 +3,6 @@ import sys
 import time
 import requests
 
-# Prevent pytest from collecting this file
-__test__ = False
-
 SERVICE_URL = "http://localhost:5000"
 METRICS_API_KEY = os.getenv("METRICS_API_KEY", "passwd")
 DESCRIPTION_TIMEOUT_SECONDS = 60
