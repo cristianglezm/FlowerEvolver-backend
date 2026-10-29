@@ -23,10 +23,10 @@ def create_app():
 
     @app.errorhandler(Exception)
     def handle_error(e):
-        code = 500
         if isinstance(e, HTTPException):
-            code = e.code
-        return jsonify(error=str(e)), code
+            return jsonify(error=e.description), e.code
+        app.logger.error(f"unhandled exception - {e}")
+        return jsonify(error="internal server error"), 500
     for ex in default_exceptions:
         app.register_error_handler(ex, handle_error)
     allowed_origins = os.getenv("ORIGINS", default="*").split(",")

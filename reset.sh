@@ -11,6 +11,15 @@ then
   echo "ORIGINS=$ORIGINS" >> .env
   echo "FLOWER_LIMIT=$FLOWER_LIMIT" >> .env
   echo "SECRET_KEY=$SECRET_KEY" >> .env
+  echo "KAFKA_ENABLED=$KAFKA_ENABLED" >> .env
+  echo "KAFKA_BOOTSTRAP_SERVERS=$KAFKA_BOOTSTRAP_SERVERS" >> .env
+  echo "KAFKA_REQUEST_TOPIC=$KAFKA_REQUEST_TOPIC" >> .env
+  echo "KAFKA_RESPONSE_TOPIC=$KAFKA_RESPONSE_TOPIC" >> .env
+  echo "REDIS_ENABLED=$REDIS_ENABLED" >> .env
+  echo "REDIS_URL=$REDIS_URL" >> .env
+  echo "RATE_LIMIT_TIMES=$RATE_LIMIT_TIMES" >> .env
+  echo "RATE_LIMIT_SECONDS=$RATE_LIMIT_SECONDS" >> .env
+  echo "METRICS_API_KEY=$METRICS_API_KEY" >> .env
 fi
 if [ -f .env ]
 then
