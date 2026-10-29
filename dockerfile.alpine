@@ -8,7 +8,8 @@ RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels $(grep '^flowerevolve
 FROM python:3.12-alpine3.24 AS backend
 RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
 COPY --from=builder /wheels /wheels
-COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
+COPY --chown=fe *.py requirements.txt .env /app/
+COPY --chown=fe .devops/reset.sh .devops/entrypoint.sh /app/
 COPY --chown=fe ./app/* /app/app/
 COPY --chown=fe ./generated /app/generated/
 WORKDIR /app

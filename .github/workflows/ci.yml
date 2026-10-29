@@ -24,7 +24,7 @@ jobs:
 
     - name: Run tests
       run: |
-        sh reset.sh
+        sh .devops/reset.sh
         export FLASK_APP=manage.py
         python -m pytest
 

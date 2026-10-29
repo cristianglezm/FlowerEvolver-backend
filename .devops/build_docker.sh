@@ -3,11 +3,11 @@
 # script to build images for FlowerEvolver-backend
 #
 # $1 OS to build "ubuntu" or "alpine"
-# sh build_docker.sh "alpine"
+# sh .devops/build_docker.sh "alpine" (run it from the repo root)
 function usage(){
     echo "usage:"
-    echo "     sh build_docker.sh \"alpine\""
-    echo "     sh build_docker.sh \"ubuntu\""
+    echo "     sh .devops/build_docker.sh \"alpine\""
+    echo "     sh .devops/build_docker.sh \"ubuntu\""
 }
 case $1 in
 

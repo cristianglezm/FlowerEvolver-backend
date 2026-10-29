@@ -68,8 +68,8 @@ You can also pull the images from this
 Before running the script to build the image, change the .env variables if you need to.
 
 * build image (alpine or ubuntu)
-    * sh build_docker.sh "alpine"
-    * sh build_docker.sh "ubuntu"
+    * sh .devops/build_docker.sh "alpine"
+    * sh .devops/build_docker.sh "ubuntu"
 * pull image (alpine(300MB) or ubuntu(800MB))
     * docker pull cristianglezm/fe:backend-alpine-dev
     * docker pull cristianglezm/fe:backend-ubuntu-dev

@@ -28,8 +28,8 @@ jobs:
 
       - name: build docker for ${{ matrix.os }}
         run: |
-          chmod +x build_docker.sh
-          ./build_docker.sh "${{ matrix.os }}"
+          chmod +x .devops/build_docker.sh
+          .devops/build_docker.sh "${{ matrix.os }}"
 
       - name: Push Docker image to registry
         run: |
