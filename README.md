@@ -86,7 +86,7 @@ their Prometheus exporters, Prometheus, Grafana, and the
 [FlowerEvolver-describe](https://github.com/cristianglezm/FlowerEvolver-describe) service
 that actually turns a `descRequests` image into a description.
 
-* docker compose up -d
+* docker compose up -d (podman: podman compose -f docker-compose.yml -f docker-compose.podman.yml up -d)
 * backend: http://localhost:5000
 * describe: http://localhost:8000
 * Prometheus: http://localhost:9090
