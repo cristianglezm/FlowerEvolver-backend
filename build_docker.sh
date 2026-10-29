@@ -12,49 +12,13 @@ function usage(){
 case $1 in
 
    "ubuntu")
-# we dont need to compile, bin has ubuntu binaries
     echo "building docker Ubuntu..."
     docker build -t cristianglezm/fe:backend-ubuntu-dev -f dockerfile.ubuntu .
    ;;
 
    "alpine")
     echo "building docker Alpine..."
-    echo "cloning required repositories..."
-# download repositories into tmp
-    if [ ! -d "tmp" ]
-    then
-     mkdir tmp
-    fi
-    cd tmp
-    if [ -d "JsonBox" ]
-    then
-        cd JsonBox && git pull && cd ..
-    else
-        git clone https://github.com/cristianglezm/JsonBox.git
-    fi
-    if [ -d "SPPAR" ]
-    then
-        cd SPPAR && git pull && cd ..
-    else
-        git clone https://github.com/cristianglezm/SPPAR.git
-    fi
-    if [ -d "EvoAI" ]
-    then
-        cd EvoAI && git pull && cd ..
-    else
-        git clone https://github.com/cristianglezm/EvoAI.git
-    fi
-    if [ -d "EcoSystem" ]
-    then
-        #cd EcoSystem && git pull && cd ..
-	echo "then"
-    else
-        #git clone https://github.com/cristianglezm/EcoSystem.git
-	echo "else"
-    fi
-    cd ..
     docker build -t docker.io/cristianglezm/fe:backend-alpine-dev -f dockerfile.alpine .
-    #rm -R tmp
    ;;
 
    *)

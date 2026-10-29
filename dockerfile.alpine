@@ -1,44 +1,20 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.12-alpine3.24 as builder
-WORKDIR /app
-RUN apk add --update --no-cache gcc musl-dev libstdc++ xorg-server-dev freeglut-dev libgudev-dev libx11-dev xrandr libxrandr-dev libxcb-dev sfml-dev libc6-compat gcompat \
-              build-base abuild binutils binutils git cmake extra-cmake-modules
-ENV CIP=/app/build
-ENV BIN=/app/bin
-COPY tmp /app/tmp
-RUN cd tmp/JsonBox && mkdir build && cd build && \ 
- cmake -DCMAKE_INSTALL_PREFIX="$CIP/JsonBox" -DCMAKE_CXX_FLAGS=-fPIC .. && \
- make -j4 install && cd /app && \
- cd tmp/SPPAR && mkdir build && \ 
- cd build && cmake -DCMAKE_INSTALL_PREFIX="$CIP/SPPAR" .. && \
- make -j4 install && cd /app && \
- cd tmp/EvoAI && \
- mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX="$CIP/EvoAI" \
-      -DJsonBox_ROOT="$CIP/JsonBox" -DCMAKE_CXX_FLAGS=-fPIC .. && \
- make -j4 install && cd /app && \
- cd tmp/EcoSystem && mkdir build && cd build && \
- cmake -DCMAKE_INSTALL_PREFIX="$CIP/EcoSystem" -DEcoSystem_BUILD_TOOLS=TRUE \ 
-      -DEvoAI_LIBRARY="$CIP/EvoAI/lib/libEvoAI-1.so" \ 
-      -DEvoAI_INCLUDE_DIR="$CIP/EvoAI/include" \ 
-      -DSPPAR_INCLUDE_DIR="$CIP/SPPAR/include" \
-      -DJsonBox_ROOT="$CIP/JsonBox" -DSPPAR_ROOT="$CIP/SPPAR" .. && \
- make -j4 FlowerEvolver && cd /app && mkdir /app/bin && \
- cp $CIP/JsonBox/lib/lib* bin/ && \
- cp $CIP/EvoAI/lib/lib* bin/ && \
- cp /app/tmp/EcoSystem/build/bin/FlowerEvolver bin/
+FROM python:3.12-alpine3.24 AS builder
+RUN apk add --no-cache build-base cmake git
+COPY requirements.txt /tmp/requirements.txt
+RUN pip wheel --no-cache-dir --no-deps --wheel-dir /wheels $(grep '^flowerevolver==' /tmp/requirements.txt)
 
-# final build with alpine FlowerEvolver binaries.
-FROM python:3.12-alpine3.24 as backend
+FROM python:3.12-alpine3.24 AS backend
 RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
+COPY --from=builder /wheels /wheels
 COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
 COPY --chown=fe ./app/* /app/app/
 COPY --chown=fe ./generated /app/generated/
-COPY --chown=fe --from=builder /app/bin/* /app/bin/
 WORKDIR /app
-RUN chmod +x bin/* ./entrypoint.sh && mv bin/lib* /usr/lib && \
-     apk update && apk add --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat mesa-gl && rm -rf /var/cache/apk/* && \
-     pip install --no-cache-dir -r requirements.txt && \
+RUN chmod +x ./entrypoint.sh && \
+     apk update && apk add --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ && rm -rf /var/cache/apk/* && \
+     pip install --no-cache-dir --find-links /wheels -r requirements.txt && \
      pip install --no-cache-dir gunicorn
 USER fe:fe
 # db is for dev mode only.

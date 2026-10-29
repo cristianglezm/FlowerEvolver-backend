@@ -17,7 +17,7 @@ db = SQLAlchemy()
 logger = structlog.get_logger(__name__)
 
 
-def create_app():
+def create_app(start_background=True):
     configure_logging()
     app = Flask(__name__, instance_relative_config=False)
     env = os.getenv("ENV", default="development")
@@ -54,6 +54,7 @@ def create_app():
         api.add_resource(DescendantResource, '/descendants', '/descendants/<int:father>', '/descendants/<int:father>/<int:mother>')
         api.add_resource(DescriptionsResource, '/descriptions', '/descriptions/<int:desc_id>')
         app.register_blueprint(monitoring_blueprint)
-        kafka_producer.init_producer(app)
-        kafka_consumer.start_consumer(app)
+        if start_background:
+            kafka_producer.init_producer(app)
+            kafka_consumer.start_consumer(app)
     return app

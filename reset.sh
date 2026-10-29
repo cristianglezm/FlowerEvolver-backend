@@ -54,8 +54,7 @@ then
 fi
 if [ ! -d migrations ]
 then
-  #flask db init
-  echo "flask db init removed"
+  flask db init
 fi
-#flask db migrate
-#flask db upgrade
+flask db migrate
+flask db upgrade

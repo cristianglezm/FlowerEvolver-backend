@@ -55,10 +55,13 @@ METRICS_API_KEY='sk_change_key'
 I recommend using the compose file from [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git)
 read the README-docker.md in [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git) repo for how to.
 
-The Alpine version needs to download some repositories(private for now) to build the executables,
-the Ubuntu version has them inside the bin folder with the Windows executables.
+Flowers are generated with the [flowerevolver](https://github.com/cristianglezm/FlowerEvolver-WASM)
+python package (installed from requirements.txt), no executable is needed anymore.
+PyPI only has glibc (manylinux) x86_64 wheels, so the Ubuntu image installs it directly while the
+Alpine image compiles it from source in a build stage (needs network access to GitHub, ~1-2 minutes).
+On arm64 hosts always compile from source (use the Alpine image or add a build stage to the Ubuntu one).
 
-If you want to use the alpine version you will need to pull the image from this 
+You can also pull the images from this
 [repo](https://hub.docker.com/repository/docker/cristianglezm/fe) and change the env variables as needed.
 
 Before running the script to build the image, change the .env variables if you need to.

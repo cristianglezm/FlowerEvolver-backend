@@ -2,11 +2,10 @@ FROM ubuntu:22.04 AS backend
 RUN addgroup --system fe && \
     adduser --disabled-login --no-create-home --system fe --ingroup fe
 COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
-COPY --chown=fe ./bin/* /app/bin/
 COPY --chown=fe ./app/* /app/app/
 COPY --chown=fe ./generated /app/generated/
 WORKDIR /app
-RUN chmod +x bin/* ./entrypoint.sh && mv bin/lib* /usr/lib && \
+RUN chmod +x ./entrypoint.sh && \
     apt-get update -y
 ENV TZ="Europe/Madrid"
 RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y \
@@ -15,7 +14,7 @@ RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y \
     apt-get update -y
 RUN DEBIAN_FRONTEND="noninteractive" apt-get install -y \
     python3.10 python3.10-venv python3.10-dev pkg-config libc6 pip \
-    libxcursor-dev libsfml-dev mysql-client libmysqlclient-dev libssl-dev curl && \
+    mysql-client libmysqlclient-dev libssl-dev curl && \
     rm /usr/bin/python3 && \
     ln -s /usr/bin/python3.10 /usr/bin/python3
 RUN curl -sS https://bootstrap.pypa.io/get-pip.py | python3.10

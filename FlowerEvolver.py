@@ -2,12 +2,14 @@ from flask.cli import FlaskGroup
 from flask_migrate import Migrate
 from dotenv import load_dotenv
 from app import create_app, db
+import os
 import logging
 from logging.handlers import RotatingFileHandler
 
 load_dotenv('.env')
-app = create_app()
+app = create_app(start_background=False)
 
+os.makedirs('instance', exist_ok=True)
 handler = RotatingFileHandler('instance/app.log', maxBytes=100000, backupCount=1)
 handler.setLevel(logging.ERROR)
 handler.setFormatter(logging.Formatter('%(asctime)s - %(name)s - %(levelname)s - %(message)s'))
