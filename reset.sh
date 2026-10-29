@@ -40,7 +40,7 @@ then
   fi
 # reset mysql db and images and genomes of flowers
   rm generated/*.png generated/*.json
-  echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
+#  echo "drop database $DB; create database $DB" | mysql -u ${USER} -h ${HOST} --password=${PASSWD}
 fi
 export FLASK_APP=FlowerEvolver.py
 if [ "$ENV" = "production" ]
@@ -54,7 +54,8 @@ then
 fi
 if [ ! -d migrations ]
 then
-  flask db init
+  #flask db init
+  echo "flask db init removed"
 fi
-flask db migrate
-flask db upgrade
+#flask db migrate
+#flask db upgrade

@@ -46,12 +46,14 @@ case $1 in
     fi
     if [ -d "EcoSystem" ]
     then
-        cd EcoSystem && git pull && cd ..
+        #cd EcoSystem && git pull && cd ..
+	echo "then"
     else
-        git clone https://github.com/cristianglezm/EcoSystem.git
+        #git clone https://github.com/cristianglezm/EcoSystem.git
+	echo "else"
     fi
     cd ..
-    docker build -t cristianglezm/fe:backend-alpine-dev -f dockerfile.alpine .
+    docker build -t docker.io/cristianglezm/fe:backend-alpine-dev -f dockerfile.alpine .
     #rm -R tmp
    ;;
 
