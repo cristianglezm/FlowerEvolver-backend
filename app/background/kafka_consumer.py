@@ -1,6 +1,8 @@
 import json
 import threading
 import structlog
+from sqlalchemy.exc import IntegrityError
+from .. import db
 from ..metrics import KAFKA_MESSAGES_PROCESSED_TOTAL, KAFKA_MESSAGE_PROCESSING_TIME_SECONDS
 from ..repositories import description_repository
 
@@ -11,6 +13,20 @@ _stop_event = threading.Event()
 _RETRY_DELAY_SECONDS = 5
 
 
+def _store(app, request_id, description):
+    with app.app_context():
+        if description_repository.get_by_id(request_id):
+            return False
+        try:
+            description_repository.create(request_id, description)
+        except IntegrityError:
+            db.session.rollback()
+            if description_repository.get_by_id(request_id):
+                return False
+            raise
+        return True
+
+
 def _handle_message(app, topic, data):
     request_id = data.get('request_id')
     description = data.get('description')
@@ -19,16 +35,16 @@ def _handle_message(app, topic, data):
         return
     with KAFKA_MESSAGE_PROCESSING_TIME_SECONDS.labels(topic=topic).time():
         try:
-            with app.app_context():
-                if description_repository.get_by_id(request_id):
-                    logger.info("kafka_description_already_exists", request_id=request_id)
-                    return
-                description_repository.create(request_id, description)
-            KAFKA_MESSAGES_PROCESSED_TOTAL.labels(topic=topic, status='success').inc()
-            logger.info("kafka_description_stored", request_id=request_id)
+            stored = _store(app, request_id, description)
         except Exception as e:
             KAFKA_MESSAGES_PROCESSED_TOTAL.labels(topic=topic, status='failure').inc()
             logger.error("kafka_message_processing_failed", request_id=request_id, error=str(e))
+            return
+        if not stored:
+            logger.info("kafka_description_already_exists", request_id=request_id)
+            return
+        KAFKA_MESSAGES_PROCESSED_TOTAL.labels(topic=topic, status='success').inc()
+        logger.info("kafka_description_stored", request_id=request_id)
 
 
 def _consume_once(app):

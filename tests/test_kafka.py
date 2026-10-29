@@ -2,7 +2,8 @@ import base64
 import threading
 import time
 from types import SimpleNamespace
-from app import create_app
+from prometheus_client import REGISTRY
+from app import create_app, db
 from app.background import kafka_producer, kafka_consumer
 from app.repositories import description_repository
 
@@ -63,7 +64,6 @@ def test_consumer_stores_a_description_once():
         kafka_consumer._handle_message(app, 'descResponses', {'request_id': request_id, 'description': 'second'})
         stored = description_repository.get_by_id(request_id)
         assert stored.description == 'first'
-        from app import db
         db.session.delete(stored)
         db.session.commit()
 
@@ -74,3 +74,28 @@ def test_consumer_ignores_messages_missing_fields():
         kafka_consumer._handle_message(app, 'descResponses', {'request_id': 987655})
         kafka_consumer._handle_message(app, 'descResponses', {'description': 'no id'})
         assert description_repository.get_by_id(987655) is None
+
+
+def test_concurrent_duplicate_is_not_counted_as_a_failure(monkeypatch):
+    app = create_app()
+    request_id = 987656
+    topic = 'descResponses'
+    with app.app_context():
+        description_repository.create(request_id, 'first')
+    real_get_by_id = description_repository.get_by_id
+    calls = []
+
+    def racy_get_by_id(id):
+        calls.append(id)
+        return None if len(calls) == 1 else real_get_by_id(id)
+
+    failures = REGISTRY.get_sample_value('kafka_messages_processed_total', {'topic': topic, 'status': 'failure'}) or 0
+    monkeypatch.setattr(description_repository, 'get_by_id', racy_get_by_id)
+    kafka_consumer._handle_message(app, topic, {'request_id': request_id, 'description': 'second'})
+    monkeypatch.undo()
+    assert (REGISTRY.get_sample_value('kafka_messages_processed_total', {'topic': topic, 'status': 'failure'}) or 0) == failures
+    with app.app_context():
+        stored = description_repository.get_by_id(request_id)
+        assert stored.description == 'first'
+        db.session.delete(stored)
+        db.session.commit()
