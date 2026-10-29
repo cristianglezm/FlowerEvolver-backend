@@ -11,7 +11,7 @@ scrape_configs:
       # service name and port defined in docker-compose.yml
       - targets: ['app:5000']
     authorization:
-      credentials: "sk_change_key"
+      credentials: "passwd"
 
   - job_name: 'redis'
     static_configs:

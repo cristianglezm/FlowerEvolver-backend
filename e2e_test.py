@@ -1,3 +1,4 @@
+import os
 import sys
 import time
 import requests
@@ -6,7 +7,7 @@ import requests
 __test__ = False
 
 SERVICE_URL = "http://localhost:5000"
-METRICS_API_KEY = "sk_change_key"
+METRICS_API_KEY = os.getenv("METRICS_API_KEY", "passwd")
 DESCRIPTION_TIMEOUT_SECONDS = 60
 
 
