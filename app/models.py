@@ -39,7 +39,7 @@ class Descriptions(db.Model):
     __tablename__ = 'descriptions'
 
     id = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False, primary_key=True)
-    description = db.Column(db.String, nullable=False)
+    description = db.Column(db.Text, nullable=False)
 
     def __repr__(self):
         return f"id: {self.id}, description:{self.description}"
