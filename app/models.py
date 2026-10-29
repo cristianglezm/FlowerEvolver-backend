@@ -1,10 +1,4 @@
-from flask import Blueprint
 from . import db
-
-flowers_blueprint = Blueprint('flowers', __name__)
-descendants_blueprint = Blueprint('descendants', __name__)
-mutations_blueprint = Blueprint('mutations', __name__)
-descriptions_blueprint = Blueprint('descriptions', __name__)
 
 
 class Flower(db.Model):

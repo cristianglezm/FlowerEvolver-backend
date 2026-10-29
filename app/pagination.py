@@ -1,3 +1,10 @@
+from flask_restful import fields
+
+count_fields = {
+    'count': fields.Integer
+}
+
+
 def parse_list_args(args, allowed_filters=()):
     """Splits request.args into (filters, limit, offset, count, error).
 
