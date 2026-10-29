@@ -8,6 +8,7 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
+* use Python 3.12 (the pinned dependencies, e.g. pydantic-core, have no wheels for 3.14 yet)
 * pip install -r requirements.txt
 * change .env as needed
 
