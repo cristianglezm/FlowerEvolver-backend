@@ -26,22 +26,10 @@ jobs:
           username: ${{ secrets.DOCKER_USERNAME }}
           password: ${{ secrets.DOCKER_PASSWORD }}
 
-      - name: build docker for alpine
-        if: matrix.os == 'alpine'
+      - name: build docker for ${{ matrix.os }}
         run: |
-          mkdir tmp && cd tmp
-          eval `ssh-agent -s`
-          ssh-add - <<< "${{ secrets.PRIVATE_SSH_KEY }}"
-          git clone git@github.com:cristianglezm/EcoSystem.git
-          cd ..
-          chmod +x build_docker.sh
-          ./build_docker.sh "${{ matrix.os }}"
-
-      - name: build docker for ubuntu
-        if: matrix.os == 'ubuntu'
-        run: |
-          chmod +x build_docker.sh
-          ./build_docker.sh "${{ matrix.os }}"
+          chmod +x .devops/build_docker.sh
+          .devops/build_docker.sh "${{ matrix.os }}"
 
       - name: Push Docker image to registry
         run: |

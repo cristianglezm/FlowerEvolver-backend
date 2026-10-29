@@ -8,8 +8,9 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
+* use Python 3.12 (the pinned dependencies, e.g. pydantic-core, have no wheels for 3.14 yet)
 * pip install -r requirements.txt
-* change .env as needed (use the absolute path for LD_LIBRARY_PATH)
+* change .env as needed
 
 ```
 HOST=localhost
@@ -20,32 +21,58 @@ ENV=production | development
 ORIGINS=*
 FLOWER_LIMIT=5000
 SECRET_KEY='notreallyneeded'
-LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
+
+# Kafka settings, backend produces to KAFKA_REQUEST_TOPIC and consumes
+# descriptions from KAFKA_RESPONSE_TOPIC. See the FlowerEvolver-describe
+# repo for the service that actually generates the descriptions.
+KAFKA_ENABLED=False
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_REQUEST_TOPIC=descRequests
+KAFKA_RESPONSE_TOPIC=descResponses
+
+# Redis is only used for distributed rate limiting; when disabled (or
+# unreachable) an in-process rate limiter is used instead, which is what
+# you want on hosts without arbitrary outbound TCP access (e.g. PythonAnywhere).
+REDIS_ENABLED=False
+REDIS_URL=redis://localhost:6379
+
+RATE_LIMIT_TIMES=5
+RATE_LIMIT_SECONDS=10
+
+# Bearer token required on GET /metrics
+METRICS_API_KEY='sk_change_key'
+
 ```
 
 * Run following commands:
-    - export FLASK_APP=FlowerEvolver.py
+    - export FLASK_APP=manage.py
     - flask db init
     - flask db migrate
     - flask db upgrade
     - flask run
+
+* Run the tests (from the repo root): `sh .devops/test.sh`. It recreates the dev database (like `.devops/reset.sh`,
+  so it wipes `db/` and `generated/`), runs pytest and flake8. `python -m pytest` alone also works once the database exists.
 
 ## Running docker ##
 
 I recommend using the compose file from [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git)
 read the README-docker.md in [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git) repo for how to.
 
-The Alpine version needs to download some repositories(private for now) to build the executables,
-the Ubuntu version has them inside the bin folder with the Windows executables.
+Flowers are generated with the [flowerevolver](https://github.com/cristianglezm/FlowerEvolver-WASM)
+python package (installed from requirements.txt), no executable is needed anymore.
+PyPI only has glibc (manylinux) x86_64 wheels, so the Ubuntu image installs it directly while the
+Alpine image compiles it from source in a build stage (needs network access to GitHub, ~1-2 minutes).
+On arm64 hosts always compile from source (use the Alpine image or add a build stage to the Ubuntu one).
 
-If you want to use the alpine version you will need to pull the image from this 
+You can also pull the images from this
 [repo](https://hub.docker.com/repository/docker/cristianglezm/fe) and change the env variables as needed.
 
 Before running the script to build the image, change the .env variables if you need to.
 
 * build image (alpine or ubuntu)
-    * sh build_docker.sh "alpine"
-    * sh build_docker.sh "ubuntu"
+    * sh .devops/build_docker.sh "alpine"
+    * sh .devops/build_docker.sh "ubuntu"
 * pull image (alpine(300MB) or ubuntu(800MB))
     * docker pull cristianglezm/fe:backend-alpine-dev
     * docker pull cristianglezm/fe:backend-ubuntu-dev
@@ -53,6 +80,37 @@ Before running the script to build the image, change the .env variables if you n
     -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
 * browse to http://localhost:5000/api/flowers to get a list of flowers.
     (use webtools to send request, a rest client or the frontend website.)
+
+## Running the full stack (Kafka, Redis, MySQL, Prometheus, Grafana) ##
+
+For local testing of the description pipeline and observability, `docker-compose.yml`
+in this repo brings up the backend alongside MySQL, Redis, Kafka (KRaft, single node),
+their Prometheus exporters, Prometheus, Grafana, and the
+[FlowerEvolver-describe](https://github.com/cristianglezm/FlowerEvolver-describe) service
+that actually turns a `descRequests` image into a description.
+
+* docker compose up -d (podman: podman compose -f docker-compose.yml -f docker-compose.podman.yml up -d)
+* backend: http://localhost:5000
+* describe: http://localhost:8000
+* Prometheus: http://localhost:9090
+* Grafana: http://localhost:3000 (admin/admin)
+
+This is a testing/local convenience, not the production topology: backend and describe
+are deployed separately (describe's ONNX models are too large for the free tier we
+currently use for the backend), so in production they don't share the same Redis or
+Kafka instance the way this compose file does for convenience.
+
+`tests/e2e/e2e_test.py` exercises this stack over real HTTP (it is not part of the pytest run,
+run it directly with `python tests/e2e/e2e_test.py` once the stack is up), including waiting for a description
+to come back through the full backend -> Kafka -> describe -> Kafka -> backend round trip.
+
+## Monitoring endpoints ##
+
+* GET /healthz - liveness, always 200 if the process is up.
+* GET /readyz - readiness, checks the database is reachable.
+* GET /health - per-component status (`database`, `kafka`, `redis`); `kafka`/`redis`
+  report `not_configured` rather than `error` when `KAFKA_ENABLED`/`REDIS_ENABLED` are false.
+* GET /metrics - Prometheus exposition format, requires `Authorization: Bearer <METRICS_API_KEY>`.
 
 ## Routes and Responses ##
 
@@ -128,7 +186,7 @@ Before running the script to build the image, change the .env variables if you n
     }
 ```
 
-* /api/ancestors
+* /api/descendants
 
     POST send
 
@@ -143,11 +201,11 @@ Before running the script to build the image, change the .env variables if you n
 ```javascript
     {
         count: Number,
-        ancestors:[{id:Number, father: Number, mother: Number}, ...]
+        descendants:[{id:Number, father: Number, mother: Number}, ...]
     }
 ```
 
-* /api/ancestors?count=1
+* /api/descendants?count=1
 
     GET
 
@@ -157,9 +215,9 @@ Before running the script to build the image, change the .env variables if you n
     }
 ```
 
-* /api/ancestors/:father
+* /api/descendants/:father
 
-    GET
+    GET returns every descendant of :father (as father or mother)
 
 ```javascript
     {[
@@ -167,13 +225,45 @@ Before running the script to build the image, change the .env variables if you n
         ...
     ]}
 ```
-* /api/ancestors/:father/:mother
+* /api/descendants/:father/:mother
 
-    GET
+    GET returns every descendant of :father and :mother
 
 ```javascript
     {[
         {id: Number, genome: String, image: String},
         ...
     ]}
+```
+
+* /api/descriptions
+
+    GET
+
+```javascript
+    {
+        count: Number,
+        descriptions:[{id: Number, description: String}, ...]
+    }
+```
+
+* /api/descriptions?count=1
+
+    GET
+
+```javasript
+    {
+        count: Number
+    }
+```
+
+* /api/descriptions/:id
+
+    GET
+
+```javascript
+    {
+        id: Number,
+        description: String
+    }
 ```
