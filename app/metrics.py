@@ -18,6 +18,12 @@ FLOWER_EVOLVER_INVOCATIONS_TOTAL = Counter(
     ["operation", "status"]
 )
 
+FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS = Histogram(
+    "flower_evolver_invocation_duration_seconds",
+    "Time taken by a single FlowerEvolver binary invocation.",
+    ["operation"]
+)
+
 KAFKA_MESSAGES_PRODUCED_TOTAL = Counter(
     "kafka_messages_produced_total",
     "Total number of Kafka messages produced by the app.",

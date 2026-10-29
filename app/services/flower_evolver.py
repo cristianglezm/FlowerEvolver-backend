@@ -1,7 +1,7 @@
 import os
 import subprocess
 from pathlib import Path
-from ..metrics import FLOWER_EVOLVER_INVOCATIONS_TOTAL
+from ..metrics import FLOWER_EVOLVER_INVOCATIONS_TOTAL, FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS
 
 
 def getFlowerEvolverExe():
@@ -11,6 +11,14 @@ def getFlowerEvolverExe():
 
     path = Path(f"bin/{exe}")
     return path.resolve()
+
+
+def _run(operation, commandArr):
+    with FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS.labels(operation=operation).time():
+        status = subprocess.run(commandArr)
+    FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(
+        operation=operation, status="success" if status.returncode == 0 else "failure").inc()
+    return status
 
 
 class Params:
@@ -34,20 +42,14 @@ def makeFlower(id, folder, params=Params()):
     joinedPath = str(os.path.join(str(folder), str(id)))
     commandArr = [f"{exe}", "-cli", "-n", "1", "-l", f"{params.layers}", "-r", f"{params.radius}",
                   "-p", f"{params.p}", "-b", f"{params.bias}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
-    status = subprocess.run(commandArr)
-    FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(
-        operation="make", status="success" if status.returncode == 0 else "failure").inc()
-    return status
+    return _run("make", commandArr)
 
 
 def drawFlower(id, folder, jsonfile):
     exe = str(getFlowerEvolverExe())
     joinedPath = str(os.path.join(str(folder), str(id)))
     commandArr = [f"{exe}", "-cli", "-lf", f"{jsonfile}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
-    status = subprocess.run(commandArr)
-    FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(
-        operation="draw", status="success" if status.returncode == 0 else "failure").inc()
-    return status
+    return _run("draw", commandArr)
 
 
 def mutateFlower(original, id, folder, params=Params()):
@@ -57,10 +59,7 @@ def mutateFlower(original, id, folder, params=Params()):
     commandArr = [f"{exe}", "-cli", "-lf", f"{originalPath}.json", "-l", f"{params.layers}",
                   "-r", f"{params.radius}", "-p", f"{params.p}", "-b", f"{params.bias}",
                   "-m", "1", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
-    status = subprocess.run(commandArr)
-    FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(
-        operation="mutate", status="success" if status.returncode == 0 else "failure").inc()
-    return status
+    return _run("mutate", commandArr)
 
 
 def reproduce(father, mother, child, folder, params=Params()):
@@ -71,7 +70,4 @@ def reproduce(father, mother, child, folder, params=Params()):
     commandArr = [f"{exe}", "-cli", "-repr", f"{fatherPath}.json", f"{motherPath}.json", "-l", f"{params.layers}",
                   "-r", f"{params.radius}", "-p", f"{params.p}", "-b", f"{params.bias}",
                   "-sf", f"{childPath}.json", "-si", f"{childPath}.png"]
-    status = subprocess.run(commandArr)
-    FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(
-        operation="reproduce", status="success" if status.returncode == 0 else "failure").inc()
-    return status
+    return _run("reproduce", commandArr)
