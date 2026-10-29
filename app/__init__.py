@@ -1,4 +1,5 @@
 import os
+import structlog
 from flask import Flask, jsonify
 from flask_cors import CORS
 from flask_restful import Api
@@ -7,30 +8,34 @@ from flask_sqlalchemy import SQLAlchemy
 from werkzeug.exceptions import HTTPException
 from werkzeug.exceptions import default_exceptions
 
+from .logging_config import configure_logging
+
 
 db = SQLAlchemy()
+logger = structlog.get_logger(__name__)
 
 
 def create_app():
+    configure_logging()
     app = Flask(__name__, instance_relative_config=False)
     env = os.getenv("ENV", default="development")
     if env == "production":
-        print('|> Loaded production config')
+        logger.info("config_loaded", env="production")
         app.config.from_object('config.ProductionConfig')
     else:
-        print('|> Loaded development config')
+        logger.info("config_loaded", env="development")
         app.config.from_object('config.Config')
 
     @app.errorhandler(Exception)
     def handle_error(e):
         if isinstance(e, HTTPException):
             return jsonify(error=e.description), e.code
-        app.logger.error(f"unhandled exception - {e}")
+        logger.error("unhandled_exception", error=str(e))
         return jsonify(error="internal server error"), 500
     for ex in default_exceptions:
         app.register_error_handler(ex, handle_error)
     allowed_origins = os.getenv("ORIGINS", default="*").split(",")
-    print(f"|> Using {allowed_origins} for origins")
+    logger.info("cors_configured", allow_origins=allowed_origins)
     CORS(app, resources={r"/api/*": {"origins": allowed_origins}})
     db.init_app(app)
     api = Api(app)
