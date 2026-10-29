@@ -13,3 +13,5 @@ generated/*.json
 *.md
 docker/grafana
 docker/prometheus
+.venv
+venv

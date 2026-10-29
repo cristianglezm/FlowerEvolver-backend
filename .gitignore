@@ -11,3 +11,5 @@ migrations
 instance
 tmp
 *.backup
+.venv
+venv
