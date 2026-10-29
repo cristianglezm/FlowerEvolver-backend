@@ -51,6 +51,9 @@ METRICS_API_KEY='sk_change_key'
     - flask db upgrade
     - flask run
 
+* Run the tests (from the repo root): `sh .devops/test.sh`. It recreates the dev database (like `.devops/reset.sh`,
+  so it wipes `db/` and `generated/`), runs pytest and flake8. `python -m pytest` alone also works once the database exists.
+
 ## Running docker ##
 
 I recommend using the compose file from [frontend](https://github.com/cristianglezm/FlowerEvolver-frontend.git)
