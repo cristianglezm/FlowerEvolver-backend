@@ -14,11 +14,16 @@ def init_producer(app):
         logger.info("kafka_producer_disabled")
         return None
     from kafka import KafkaProducer
-    _producer = KafkaProducer(
-        bootstrap_servers=app.config['KAFKA_BOOTSTRAP_SERVERS'],
-        value_serializer=lambda v: json.dumps(v).encode('utf-8'),
-    )
-    logger.info("kafka_producer_initialized", bootstrap_servers=app.config['KAFKA_BOOTSTRAP_SERVERS'])
+    from kafka.errors import KafkaError
+    try:
+        _producer = KafkaProducer(
+            bootstrap_servers=app.config['KAFKA_BOOTSTRAP_SERVERS'],
+            value_serializer=lambda v: json.dumps(v).encode('utf-8'),
+        )
+        logger.info("kafka_producer_initialized", bootstrap_servers=app.config['KAFKA_BOOTSTRAP_SERVERS'])
+    except KafkaError as e:
+        logger.warning("kafka_producer_unavailable", error=str(e))
+        _producer = None
     return _producer
 
 

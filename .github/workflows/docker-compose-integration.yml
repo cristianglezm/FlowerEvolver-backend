@@ -1,0 +1,130 @@
+name: CI - Docker Compose Integration Tests
+
+on:
+  workflow_dispatch:
+  workflow_run:
+    workflows: ["Build and Push Docker Images"]
+    types: [completed]
+
+jobs:
+  integration-tests:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      (github.event_name == 'workflow_run' && github.event.workflow_run.conclusion == 'success')
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v5
+
+      - name: Set up Python 3.11
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install Python dependencies
+        run: |
+          set -euo pipefail
+          python -m pip install --upgrade pip
+          pip install requests
+
+      - name: Start services
+        run: |
+          set -euo pipefail
+
+          echo "Pulling latest images..."
+          docker compose pull
+
+          echo "Starting services..."
+          docker compose up -d --remove-orphans
+
+          echo "Waiting 20s for initial stabilization..."
+          sleep 20
+
+      - name: Check Service Health
+        run: |
+          set -euo pipefail
+
+          if [ "$(docker inspect -f '{{.State.Running}}' app)" != "true" ]; then
+             echo "[FAIL] app container is not running!"
+             docker compose logs app
+             exit 1
+          fi
+
+          echo "Checking Internal Kafka..."
+          docker compose exec -T kafka /opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list
+
+          echo "Checking Internal Redis..."
+          docker compose exec -T redis redis-cli ping
+
+          echo "Checking app service logs (tail 50 lines)..."
+          docker compose logs --no-color app | tail -n 50 || true
+
+      - name: Run E2E API tests
+        run: |
+          set -euo pipefail
+          echo "[INFO] Running E2E API tests..."
+          if python e2e_test.py; then
+            echo "[OK] E2E API tests passed"
+          else
+            echo "[FAIL] E2E API tests failed"
+            exit 1
+          fi
+
+      - name: Verify Prometheus metrics
+        run: |
+          set -euo pipefail
+          PROMETHEUS_URL="http://localhost:9090"
+
+          echo "Checking Prometheus health..."
+          if curl -sSf "$PROMETHEUS_URL/-/healthy" >/dev/null; then
+             echo "[OK] Prometheus is healthy"
+          else
+             echo "[WARN] Prometheus not healthy endpoint"
+          fi
+
+          echo "Querying Prometheus for 'up' metric..."
+          METRICS_JSON=$(curl -sS "$PROMETHEUS_URL/api/v1/query?query=up" || true)
+          if echo "$METRICS_JSON" | grep -q '"status":"success"'; then
+            echo "[OK] Prometheus metrics collection verified"
+          else
+            echo "[WARN] Could not verify Prometheus metrics"
+          fi
+
+      - name: Check Grafana availability
+        run: |
+          set -euo pipefail
+          echo "Checking Grafana availability..."
+          GRAFANA_URL="http://localhost:3000/api/health"
+          for i in {1..20}; do
+            HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" "$GRAFANA_URL" || echo "000")
+            if [ "$HTTP_CODE" = "200" ]; then
+              echo "[OK] Grafana is available (200)"
+              break
+            fi
+            echo "Waiting for Grafana... ($i/20) status=$HTTP_CODE"
+            sleep 2
+          done
+
+      - name: Save docker logs for potential upload
+        if: always()
+        run: |
+          set -euo pipefail
+          mkdir -p test-logs
+          docker compose logs --no-color > test-logs/docker-compose.log || true
+          docker compose ps --no-trunc > test-logs/docker-compose-ps.log || true
+
+      - name: Upload logs artifact on failure
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: integration-logs
+          path: test-logs
+
+      - name: Cleanup docker compose
+        if: always()
+        run: |
+          set -euo pipefail
+          echo "Cleaning up..."
+          docker compose down -v --remove-orphans || true

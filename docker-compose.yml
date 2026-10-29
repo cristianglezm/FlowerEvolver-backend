@@ -1,0 +1,192 @@
+services:
+  app:
+    build:
+      context: .
+      dockerfile: dockerfile.alpine
+    image: "cristianglezm/fe:backend-alpine-dev"
+    hostname: app
+    container_name: app
+    ports:
+      - "5000:5000"
+    env_file:
+      - .env
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    environment:
+      - ENV=production
+      - HOST=db
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379
+      - KAFKA_ENABLED=true
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - PROMETHEUS_MULTIPROC_DIR=/tmp/prometheus_multiproc
+    volumes:
+      - generated_data:/app/generated
+    networks:
+      - internal
+
+  db:
+    image: "mysql:8.0"
+    hostname: db
+    container_name: db
+    environment:
+      - MYSQL_DATABASE=${DB}
+      - MYSQL_USER=${USER}
+      - MYSQL_PASSWORD=${PASSWD}
+      - MYSQL_ROOT_PASSWORD=${PASSWD}
+    volumes:
+      - db_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost", "-u", "root", "-p${PASSWD}"]
+      interval: 10s
+      retries: 5
+      start_period: 20s
+      timeout: 5s
+    networks:
+      - internal
+
+  describe:
+    image: "cristianglezm/fe:describe"
+    hostname: describe
+    container_name: describe
+    ports:
+      - "8000:8000"
+    environment:
+      - ORIGINS=*
+      - ONNX_PROVIDERS=CPUExecutionProvider
+      - KAFKA_ENABLED=true
+      - KAFKA_BOOTSTRAP_SERVERS=kafka:9092
+      - REDIS_ENABLED=true
+      - REDIS_URL=redis://redis:6379
+      - METRICS_API_KEY=${METRICS_API_KEY}
+    depends_on:
+      redis:
+        condition: service_started
+      kafka:
+        condition: service_healthy
+    networks:
+      - internal
+
+  redis:
+    image: "redis:7-alpine"
+    hostname: redis
+    container_name: redis
+    ports:
+      - "6379:6379"
+    networks:
+      - internal
+
+  redis_exporter:
+    image: oliver006/redis_exporter:v1.76.0-alpine
+    hostname: redis_exporter
+    container_name: redis_exporter
+    ports:
+      - "9121:9121"
+    environment:
+      - REDIS_ADDR=redis:6379
+    depends_on:
+      - redis
+    networks:
+      - internal
+
+  kafka:
+    image: 'apache/kafka:3.7.1'
+    hostname: kafka
+    container_name: kafka
+    ports:
+      - '9092:9092'
+      - '9093:9093'
+      - '29092:29092'
+    environment:
+      # KRaft settings
+      KAFKA_NODE_ID: 1
+      KAFKA_PROCESS_ROLES: controller,broker
+      KAFKA_CONTROLLER_QUORUM_VOTERS: 1@kafka:9093
+      # Listeners
+      KAFKA_LISTENERS: INTERNAL://0.0.0.0:9092,CONTROLLER://0.0.0.0:9093,EXTERNAL://0.0.0.0:29092
+      KAFKA_ADVERTISED_LISTENERS: INTERNAL://kafka:9092,EXTERNAL://localhost:29092
+      KAFKA_LISTENER_SECURITY_PROTOCOL_MAP: CONTROLLER:PLAINTEXT,INTERNAL:PLAINTEXT,EXTERNAL:PLAINTEXT
+      KAFKA_CONTROLLER_LISTENER_NAMES: CONTROLLER
+      KAFKA_INTER_BROKER_LISTENER_NAME: INTERNAL
+      # Required for single-node KRaft clusters so internal topics don't fail
+      KAFKA_OFFSETS_TOPIC_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_REPLICATION_FACTOR: 1
+      KAFKA_TRANSACTION_STATE_LOG_MIN_ISR: 1
+    networks:
+      - internal
+    healthcheck:
+      test:
+        [
+          "CMD-SHELL",
+          "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list > /dev/null 2>&1"
+        ]
+      interval: 10s
+      retries: 5
+      start_period: 30s
+      timeout: 5s
+
+  kafka_exporter:
+    image: "danielqsj/kafka-exporter:v1.9.0"
+    hostname: kafka_exporter
+    container_name: kafka_exporter
+    ports:
+      - "9308:9308"
+    restart: always
+    environment:
+      - KAFKA_SERVER=kafka:9092
+    depends_on:
+      kafka:
+        condition: service_healthy
+    networks:
+      - internal
+
+  prometheus:
+    image: "prom/prometheus:v3.5.0"
+    hostname: prometheus
+    container_name: prometheus
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      - prometheus_data:/prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+    depends_on:
+      - app
+    networks:
+      - internal
+
+  grafana:
+    image: "grafana/grafana:12.2.0-17630182352"
+    hostname: grafana
+    container_name: grafana
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_USER=admin
+      - GF_SECURITY_ADMIN_PASSWORD=admin
+    volumes:
+      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
+      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    networks:
+      - internal
+
+volumes:
+  db_data:
+  generated_data:
+  prometheus_data:
+  grafana_data:
+
+networks:
+  internal:
+    name: internal
+    driver: bridge

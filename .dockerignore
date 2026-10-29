@@ -1,0 +1,16 @@
+.git
+.github
+__pycache__
+*.pyc
+.idea
+.DS_Store
+migrations
+instance
+db
+tmp
+generated/*.png
+generated/*.json
+*.backup
+*.md
+docker/grafana
+docker/prometheus

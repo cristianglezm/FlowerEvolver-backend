@@ -8,6 +8,7 @@ logger = structlog.get_logger(__name__)
 
 _thread = None
 _stop_event = threading.Event()
+_RETRY_DELAY_SECONDS = 5
 
 
 def _handle_message(app, topic, data):
@@ -30,7 +31,7 @@ def _handle_message(app, topic, data):
             logger.error("kafka_message_processing_failed", request_id=request_id, error=str(e))
 
 
-def _consume_loop(app):
+def _consume_once(app):
     from kafka import KafkaConsumer
     topic = app.config['KAFKA_RESPONSE_TOPIC']
     consumer = KafkaConsumer(
@@ -42,13 +43,24 @@ def _consume_loop(app):
         consumer_timeout_ms=1000,
     )
     logger.info("kafka_consumer_started", topic=topic)
+    try:
+        while not _stop_event.is_set():
+            for message in consumer:
+                _handle_message(app, topic, message.value)
+                if _stop_event.is_set():
+                    break
+    finally:
+        consumer.close()
+        logger.info("kafka_consumer_stopped", topic=topic)
+
+
+def _consume_loop(app):
     while not _stop_event.is_set():
-        for message in consumer:
-            _handle_message(app, topic, message.value)
-            if _stop_event.is_set():
-                break
-    consumer.close()
-    logger.info("kafka_consumer_stopped", topic=topic)
+        try:
+            _consume_once(app)
+        except Exception as e:
+            logger.warning("kafka_consumer_connection_failed", error=str(e), retry_in=_RETRY_DELAY_SECONDS)
+            _stop_event.wait(_RETRY_DELAY_SECONDS)
 
 
 def start_consumer(app):

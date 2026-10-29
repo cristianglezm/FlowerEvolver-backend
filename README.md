@@ -20,6 +20,27 @@ ENV=production | development
 ORIGINS=*
 FLOWER_LIMIT=5000
 SECRET_KEY='notreallyneeded'
+
+# Kafka settings, backend produces to KAFKA_REQUEST_TOPIC and consumes
+# descriptions from KAFKA_RESPONSE_TOPIC. See the FlowerEvolver-describe
+# repo for the service that actually generates the descriptions.
+KAFKA_ENABLED=False
+KAFKA_BOOTSTRAP_SERVERS=localhost:9092
+KAFKA_REQUEST_TOPIC=descRequests
+KAFKA_RESPONSE_TOPIC=descResponses
+
+# Redis is only used for distributed rate limiting; when disabled (or
+# unreachable) an in-process rate limiter is used instead, which is what
+# you want on hosts without arbitrary outbound TCP access (e.g. PythonAnywhere).
+REDIS_ENABLED=False
+REDIS_URL=redis://localhost:6379
+
+RATE_LIMIT_TIMES=5
+RATE_LIMIT_SECONDS=10
+
+# Bearer token required on GET /metrics
+METRICS_API_KEY='sk_change_key'
+
 LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
 ```
 
@@ -53,6 +74,36 @@ Before running the script to build the image, change the .env variables if you n
     -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
 * browse to http://localhost:5000/api/flowers to get a list of flowers.
     (use webtools to send request, a rest client or the frontend website.)
+
+## Running the full stack (Kafka, Redis, MySQL, Prometheus, Grafana) ##
+
+For local testing of the description pipeline and observability, `docker-compose.yml`
+in this repo brings up the backend alongside MySQL, Redis, Kafka (KRaft, single node),
+their Prometheus exporters, Prometheus, Grafana, and the
+[FlowerEvolver-describe](https://github.com/cristianglezm/FlowerEvolver-describe) service
+that actually turns a `descRequests` image into a description.
+
+* docker compose up -d
+* backend: http://localhost:5000
+* describe: http://localhost:8000
+* Prometheus: http://localhost:9090
+* Grafana: http://localhost:3000 (admin/admin)
+
+This is a testing/local convenience, not the production topology: backend and describe
+are deployed separately (describe's ONNX models are too large for the free tier we
+currently use for the backend), so in production they don't share the same Redis or
+Kafka instance the way this compose file does for convenience.
+
+`e2e_test.py` exercises this stack over real HTTP, including waiting for a description
+to come back through the full backend -> Kafka -> describe -> Kafka -> backend round trip.
+
+## Monitoring endpoints ##
+
+* GET /healthz - liveness, always 200 if the process is up.
+* GET /readyz - readiness, checks the database is reachable.
+* GET /health - per-component status (`database`, `kafka`, `redis`); `kafka`/`redis`
+  report `not_configured` rather than `error` when `KAFKA_ENABLED`/`REDIS_ENABLED` are false.
+* GET /metrics - Prometheus exposition format, requires `Authorization: Bearer <METRICS_API_KEY>`.
 
 ## Routes and Responses ##
 
