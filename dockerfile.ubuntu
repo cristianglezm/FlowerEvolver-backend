@@ -3,7 +3,7 @@ RUN addgroup --system fe && \
     adduser --disabled-login --no-create-home --system fe --ingroup fe
 COPY --chown=fe *.py requirements.txt .env /app/
 COPY --chown=fe .devops/reset.sh .devops/entrypoint.sh /app/
-COPY --chown=fe ./app/* /app/app/
+COPY --chown=fe ./app /app/app/
 COPY --chown=fe ./generated /app/generated/
 WORKDIR /app
 RUN chmod +x ./entrypoint.sh && \
