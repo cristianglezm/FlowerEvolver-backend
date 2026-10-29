@@ -1,8 +1,7 @@
 import string
 import random
 import json
-from pydantic import BaseModel, ValidationError
-from typing import List, Union
+from pydantic import ValidationError
 from flask_restful import Resource, reqparse, request
 from flask_restful import fields, marshal
 from flask import current_app
@@ -10,7 +9,8 @@ from flask_cors import cross_origin
 from pathlib import Path
 from sqlalchemy import and_
 from app.models import Flower, Descendant, Mutation, Descriptions
-from .FlowerEvolver import makeFlower, drawFlower, mutateFlower, reproduce
+from .schemas import SharedFlower
+from .services.flower_evolver import makeFlower, drawFlower, mutateFlower, reproduce
 from . import db
 
 flower_fields = {
@@ -27,63 +27,6 @@ flower_list_fields = {
 count_fields = {
     'count': fields.Integer
 }
-
-
-class Link(BaseModel):
-    layer: str
-    neuron: str
-
-
-class Connection(BaseModel):
-    dest: Link
-    frozen: bool
-    gradient: float
-    src: Link
-    weight: float
-
-
-class ConnectionChromosome(BaseModel):
-    Connection: Connection
-    enabled: bool
-    frozen: bool
-
-
-class NodeChromosome(BaseModel):
-    actType: str
-    biasWeight: float
-    layerID: str
-    neuronID: str
-    nrnType: str
-
-
-class Genome(BaseModel):
-    ConnectionChromosomes: List[ConnectionChromosome]
-    GenomeID: str
-    SpeciesID: str
-    cppn: bool
-    fitness: float
-    nodeChromosomes: List[NodeChromosome]
-    rnnAllowed: bool
-
-
-class DNA(BaseModel):
-    genomes: List[Genome]
-
-
-class Petals(BaseModel):
-    P: Union[float, int]
-    bias: Union[float, int]
-    numLayers: int
-    radius: int
-
-
-class FlowerGenome(BaseModel):
-    dna: DNA
-    petals: Petals
-
-
-class SharedFlower(BaseModel):
-    Flower: FlowerGenome
 
 
 flower_post_parser = reqparse.RequestParser()
