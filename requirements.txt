@@ -11,6 +11,7 @@ Werkzeug==3.1.8
 alembic==1.20.0
 aniso8601==10.0.1
 click==8.5.0
+flowerevolver==4.0.2
 itsdangerous==2.2.0
 kafka-python==3.0.8
 pydantic==2.11.7

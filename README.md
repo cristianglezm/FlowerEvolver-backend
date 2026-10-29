@@ -9,7 +9,7 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
 * pip install -r requirements.txt
-* change .env as needed (use the absolute path for LD_LIBRARY_PATH)
+* change .env as needed
 
 ```
 HOST=localhost
@@ -41,7 +41,6 @@ RATE_LIMIT_SECONDS=10
 # Bearer token required on GET /metrics
 METRICS_API_KEY='sk_change_key'
 
-LD_LIBRARY_PATH=./bin:$LD_LIBRARY_PATH
 ```
 
 * Run following commands:

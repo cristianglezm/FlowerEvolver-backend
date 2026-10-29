@@ -1,24 +1,11 @@
-import os
-import subprocess
+import functools
 from pathlib import Path
+import flowerevolver as fe
 from ..metrics import FLOWER_EVOLVER_INVOCATIONS_TOTAL, FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS
 
 
-def getFlowerEvolverExe():
-    exe = "FlowerEvolver"
-    if os.name == 'nt':
-        exe += ".exe"
-
-    path = Path(f"bin/{exe}")
-    return path.resolve()
-
-
-def _run(operation, commandArr):
-    with FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS.labels(operation=operation).time():
-        status = subprocess.run(commandArr)
-    FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(
-        operation=operation, status="success" if status.returncode == 0 else "failure").inc()
-    return status
+class FlowerEvolverError(Exception):
+    pass
 
 
 class Params:
@@ -37,37 +24,59 @@ class Params:
         return f"layers: {self.layers}, radius: {self.radius}, p: {self.p}, bias: {self.bias}"
 
 
+def _tracked(operation):
+    def decorator(func):
+        @functools.wraps(func)
+        def wrapper(*args, **kwargs):
+            try:
+                with FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS.labels(operation=operation).time():
+                    result = func(*args, **kwargs)
+            except (ValueError, RuntimeError, OSError) as e:
+                FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(operation=operation, status="failure").inc()
+                raise FlowerEvolverError(str(e)) from e
+            FLOWER_EVOLVER_INVOCATIONS_TOTAL.labels(operation=operation, status="success").inc()
+            return result
+        return wrapper
+    return decorator
+
+
+def _load(folder, id):
+    return fe.Flower.from_json((Path(folder) / f"{id}.json").read_text())
+
+
+def _save(folder, id, genome, png):
+    (Path(folder) / f"{id}.png").write_bytes(png)
+    (Path(folder) / f"{id}.json").write_text(genome)
+
+
+def _save_flower(folder, id, flower):
+    _save(folder, id, flower.to_json(), flower.petals.image.to_png_bytes())
+
+
+@_tracked("make")
 def makeFlower(id, folder, params=Params()):
-    exe = str(getFlowerEvolverExe())
-    joinedPath = str(os.path.join(str(folder), str(id)))
-    commandArr = [f"{exe}", "-cli", "-n", "1", "-l", f"{params.layers}", "-r", f"{params.radius}",
-                  "-p", f"{params.p}", "-b", f"{params.bias}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
-    return _run("make", commandArr)
+    flower = fe.make_flower(params.radius, params.layers, params.p, params.bias)
+    _save_flower(folder, id, flower)
 
 
-def drawFlower(id, folder, jsonfile):
-    exe = str(getFlowerEvolverExe())
-    joinedPath = str(os.path.join(str(folder), str(id)))
-    commandArr = [f"{exe}", "-cli", "-lf", f"{jsonfile}", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
-    return _run("draw", commandArr)
+@_tracked("draw")
+def drawFlower(id, folder, genome):
+    flower = fe.Flower.from_json(genome)
+    petals = flower.petals
+    image = fe.draw_flower(flower.dna, petals.radius, petals.num_layers, petals.P, petals.bias)
+    _save(folder, id, flower.to_json(), image.to_png_bytes())
 
 
+@_tracked("mutate")
 def mutateFlower(original, id, folder, params=Params()):
-    exe = str(getFlowerEvolverExe())
-    joinedPath = str(os.path.join(str(folder), str(id)))
-    originalPath = str(os.path.join(str(folder), str(original)))
-    commandArr = [f"{exe}", "-cli", "-lf", f"{originalPath}.json", "-l", f"{params.layers}",
-                  "-r", f"{params.radius}", "-p", f"{params.p}", "-b", f"{params.bias}",
-                  "-m", "1", "-sf", f"{joinedPath}.json", "-si", f"{joinedPath}.png"]
-    return _run("mutate", commandArr)
+    dna = _load(folder, original).dna
+    flower = fe.mutate(dna, params.radius, params.layers, params.p, params.bias)
+    _save_flower(folder, id, flower)
 
 
+@_tracked("reproduce")
 def reproduce(father, mother, child, folder, params=Params()):
-    exe = str(getFlowerEvolverExe())
-    childPath = str(os.path.join(str(folder), str(child)))
-    fatherPath = str(os.path.join(str(folder), str(father)))
-    motherPath = str(os.path.join(str(folder), str(mother)))
-    commandArr = [f"{exe}", "-cli", "-repr", f"{fatherPath}.json", f"{motherPath}.json", "-l", f"{params.layers}",
-                  "-r", f"{params.radius}", "-p", f"{params.p}", "-b", f"{params.bias}",
-                  "-sf", f"{childPath}.json", "-si", f"{childPath}.png"]
-    return _run("reproduce", commandArr)
+    father_dna = _load(folder, father).dna
+    mother_dna = _load(folder, mother).dna
+    flower = fe.reproduce(father_dna, mother_dna, params.radius, params.layers, params.p, params.bias)
+    _save_flower(folder, child, flower)

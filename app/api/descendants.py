@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import current_app
 from ..repositories import flower_repository, descendant_repository
 from ..pagination import parse_list_args, count_fields
-from ..services.flower_evolver import reproduce
+from ..services.flower_evolver import reproduce, FlowerEvolverError
 from ..background import kafka_producer
 from .. import db
 from .flowers import flower_fields, is_over_limit
@@ -97,11 +97,12 @@ class DescendantResource(Resource):
             flower.image = f"{str(flower.id)}.png"
             descendant.id = flower.id
             path = Path(current_app.config['GENERATED_FOLDER'])
-            status = reproduce(descendant.father, descendant.mother, descendant.id, path.resolve())
-            if(status.returncode != 0):
+            try:
+                reproduce(descendant.father, descendant.mother, descendant.id, path.resolve())
+            except FlowerEvolverError as e:
                 db.session.rollback()
                 logger.info("descendant_post_reproduce_error", father=descendant.father,
-                            mother=descendant.mother, error=status.stderr)
+                            mother=descendant.mother, error=str(e))
                 return f"Something went wrong then repoducing flowers with id {descendant.father} and {descendant.mother}", 400
             descendant_repository.save(descendant)
             logger.info("descendant_post_reproduce", father=descendant.father, mother=descendant.mother, id=descendant.id)

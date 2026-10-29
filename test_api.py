@@ -48,6 +48,18 @@ class TestFlowers:
             response = client.post(f"{base_url}/flowers", json=flower_data)
             assert_response_status(response, 400)
 
+    def test_share_legacy_binary_flower(self, client):
+        with Path('test_data/legacy_binary_genome.json').open('r') as file:
+            response = client.post(f"{base_url}/flowers", json=json.load(file))
+            assert_response_status(response, 200)
+
+    def test_share_flower_with_single_genome(self, client):
+        with Path('test_data/legacy_binary_genome.json').open('r') as file:
+            flower_data = json.load(file)
+            flower_data['Flower']['dna']['genomes'] = flower_data['Flower']['dna']['genomes'][:1]
+            response = client.post(f"{base_url}/flowers", json=flower_data)
+            assert_response_status(response, 400)
+
     def test_get_flowers(self, client):
         response = client.get(f"{base_url}/flowers")
         assert_response_status(response, 200)

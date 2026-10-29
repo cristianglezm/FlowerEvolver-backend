@@ -6,7 +6,7 @@ from pathlib import Path
 from flask import current_app
 from ..repositories import flower_repository, mutation_repository
 from ..pagination import parse_list_args, count_fields
-from ..services.flower_evolver import mutateFlower
+from ..services.flower_evolver import mutateFlower, FlowerEvolverError
 from ..background import kafka_producer
 from .. import db
 from .flowers import flower_fields, is_over_limit
@@ -78,10 +78,11 @@ class MutationResource(Resource):
             flower.image = f"{str(flower.id)}.png"
             mutation.id = flower.id
             path = Path(current_app.config['GENERATED_FOLDER'])
-            status = mutateFlower(mutation.original, flower.id, path.resolve())
-            if(status.returncode != 0):
+            try:
+                mutateFlower(mutation.original, flower.id, path.resolve())
+            except FlowerEvolverError as e:
                 db.session.rollback()
-                logger.info("mutation_post_error", original=mutation.original, error=status.stderr)
+                logger.info("mutation_post_error", original=mutation.original, error=str(e))
                 return f"Something went wrong when making mutations with original {mutation.original}", 400
             mutation_repository.save(mutation)
             logger.info("mutation_post_success", original=mutation.original, id=mutation.id)

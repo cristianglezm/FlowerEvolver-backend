@@ -1,5 +1,3 @@
-import string
-import random
 import json
 import structlog
 from pydantic import ValidationError
@@ -9,7 +7,7 @@ from flask import current_app
 from flask_cors import cross_origin
 from pathlib import Path
 from ..schemas import SharedFlower
-from ..services.flower_evolver import makeFlower, drawFlower
+from ..services.flower_evolver import makeFlower, drawFlower, FlowerEvolverError
 from ..repositories import flower_repository
 from ..pagination import parse_list_args, count_fields
 from ..background import kafka_producer
@@ -64,11 +62,6 @@ class FlowerResource(Resource):
             'flowers': [marshal(f, flower_fields) for f in flowers]
         }, flower_list_fields)
 
-    def get_random_filename(self):
-        letters_and_digits = string.ascii_letters + string.digits
-        random_filename = ''.join(random.choice(letters_and_digits) for i in range(20))
-        return random_filename + '.json'
-
     @cross_origin()
     def post(self):
         if(is_over_limit()):
@@ -80,9 +73,10 @@ class FlowerResource(Resource):
         if not sharedFlower:
             logger.info("flower_post_make_flower")
             flower = flower_repository.create(**args)
-            status = makeFlower(flower.id, path.resolve())
-            if(status.returncode != 0):
-                logger.info("flower_post_make_flower_error", error=status.stderr)
+            try:
+                makeFlower(flower.id, path.resolve())
+            except FlowerEvolverError as e:
+                logger.info("flower_post_make_flower_error", error=str(e))
                 db.session.rollback()
                 return "something went wrong while making the flower.", 400
             flower.genome = f"{flower.id}.json"
@@ -96,20 +90,15 @@ class FlowerResource(Resource):
         except ValidationError as e:
             logger.error("flower_post_share_flower_validation_error", error=str(e))
             return "error sharing flower, probably bad format.", 400
-        random_filename = self.get_random_filename()
-        tmpFlower = Path(f"instance/{random_filename}")
-        with open(tmpFlower.resolve(), 'w') as f:
-            json.dump(shared_flower.model_dump(), f)
         flower = flower_repository.create(**args)
-        status = drawFlower(flower.id, path.resolve(), tmpFlower.resolve())
-        if(status.returncode != 0):
+        try:
+            drawFlower(flower.id, path.resolve(), json.dumps(shared_flower.model_dump()))
+        except FlowerEvolverError as e:
             db.session.rollback()
-            tmpFlower.unlink()
-            logger.error("flower_post_share_flower_draw_error", error=status.stderr)
+            logger.error("flower_post_share_flower_draw_error", error=str(e))
             return "the flower genome file has invalid data.", 400
         flower.genome = f"{flower.id}.json"
         flower.image = f"{flower.id}.png"
         db.session.commit()
-        tmpFlower.unlink()
         kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
         return marshal(flower, flower_fields)
