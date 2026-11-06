@@ -16,7 +16,7 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 HOST=localhost
 DB=flowerevolver
 PASSWD='passwd'
-USER=user
+DB_USER=user
 ENV=production | development
 ORIGINS=*
 FLOWER_LIMIT=5000
@@ -51,6 +51,12 @@ METRICS_API_KEY='sk_change_key'
     - flask db upgrade
     - flask run
 
+* `.devops/reset.sh` is the daily reset (the PythonAnywhere cron job at 00:00 UTC) and the start up script of the
+  containers. Run it from the repo root. It always wipes `generated/`, the MySQL database `DB` on `HOST` (dropped and
+  created again) and `db/` (sqlite), then runs the migrations. With `ENV=production` it waits for MySQL and checks the
+  login first and any MySQL problem is fatal, otherwise a MySQL problem is only a warning and sqlite is used.
+  `RESET_DATA=false` keeps the data. The mysql login is `DB_USER` (`USER` is only a fallback: it is the name of the
+  shell user, and docker compose prefers the shell over `.env`). Variables already in the environment win over `.env`.
 * Run the tests (from the repo root): `sh .devops/test.sh`. It recreates the dev database (like `.devops/reset.sh`,
   so it wipes `db/` and `generated/`), runs pytest and flake8. `python -m pytest` alone also works once the database exists.
 

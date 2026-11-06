@@ -36,7 +36,7 @@ services:
     container_name: db
     environment:
       - MYSQL_DATABASE=${DB}
-      - MYSQL_USER=${USER}
+      - MYSQL_USER=${DB_USER}
       - MYSQL_PASSWORD=${PASSWD}
       - MYSQL_ROOT_PASSWORD=${PASSWD}
     volumes:
@@ -152,8 +152,9 @@ services:
     ports:
       - "9090:9090"
     volumes:
-      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml
-      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml
+      # :z relabels the files for SELinux hosts (Fedora/RHEL podman), ignored elsewhere
+      - ./docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro,z
+      - ./docker/prometheus/alert_rules.yml:/etc/prometheus/alert_rules.yml:ro,z
       - prometheus_data:/prometheus
     command:
       - '--config.file=/etc/prometheus/prometheus.yml'
@@ -172,8 +173,8 @@ services:
       - GF_SECURITY_ADMIN_USER=admin
       - GF_SECURITY_ADMIN_PASSWORD=admin
     volumes:
-      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources
-      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards
+      - ./docker/grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro,z
+      - ./docker/grafana/provisioning/dashboards:/etc/grafana/provisioning/dashboards:ro,z
       - grafana_data:/var/lib/grafana
     depends_on:
       - prometheus

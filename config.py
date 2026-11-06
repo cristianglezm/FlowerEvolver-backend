@@ -1,4 +1,5 @@
 import os
+from urllib.parse import quote_plus
 
 
 def _bool_env(name, default=False):
@@ -33,7 +34,10 @@ class ProductionConfig(Config):
     DEBUG = False
     ENV = 'production'
     FLOWER_LIMIT = os.getenv('FLOWER_LIMIT', default=5000)
-    SQLALCHEMY_DATABASE_URI = f"mysql://{os.getenv('USER')}:{os.getenv('PASSWD')}@{os.getenv('HOST')}/{os.getenv('DB')}"
+    # DB_USER, USER is the legacy name (and the login name of the shell user, so it is a bad key)
+    SQLALCHEMY_DATABASE_URI = (
+        f"mysql://{quote_plus(os.getenv('DB_USER') or os.getenv('USER') or '')}:{quote_plus(os.getenv('PASSWD') or '')}"
+        f"@{os.getenv('HOST')}/{os.getenv('DB')}")
     SQLALCHEMY_POOL_RECYCLE = 299
     SQLALCHEMY_POOL_TIMEOUT = 20
     # @property
