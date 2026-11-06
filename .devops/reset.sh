@@ -1,21 +1,30 @@
 #!/bin/sh
-# Daily reset (cron, 00:00 UTC on PythonAnywhere) and start up script of the containers.
-# It ALWAYS wipes the data, then runs the flask migrations to recreate the schema:
-#   - generated/ (images and genomes)
-#   - the MySQL database $DB on $HOST: dropped and created again (HOST is the database host)
-#   - db/ (the sqlite files used when ENV is not production)
-# ENV=production additionally waits for MySQL and checks the login first, and any MySQL
-# problem is fatal. In any other ENV a MySQL problem is only a warning (dev machines and CI
-# have no MySQL) and the migrations go to sqlite.
+# Start up script of the containers and daily reset job (cron at 00:00 UTC on PythonAnywhere).
+#
+# The flower rows and generated/<id>.png|json are tied by the flower id (mutations and
+# descendants read the .json of the parent), so they are always reset together:
+#   - generated/            images and genomes
+#   - MySQL database $DB    on $HOST (the database host): dropped and created again
+#   - db/                   sqlite files, used when ENV is not production
+# and then the flask migrations recreate the schema. Nothing else creates the tables.
+#
+# What is reset depends on ENV, because the compose stack runs this on EVERY container start
+# and keeps db_data and generated_data volumes so that a restart keeps the flowers:
+#   ENV=production   keeps the data. Waits for MySQL, checks that DB_USER can log in
+#                    (any MySQL problem is fatal), then only migrates.
+#   any other ENV    resets everything (the daily job). A MySQL problem is only a warning
+#                    here (dev machines and CI have no MySQL) and the migrations go to sqlite.
+# RESET_DATA=true|false overrides that, e.g. a daily reset of a production setup:
+#   ENV=production RESET_DATA=true sh .devops/reset.sh   (waits for MySQL, wipes, migrates MySQL)
 #
 # Run it from the repo root (relative paths); `flask` and `python` must be on the PATH.
 # Settings already present in the environment (docker compose, PythonAnywhere, the shell)
 # always win over .env, the same rule python-dotenv applies when the app loads .env.
 #
 # Optional:
-#   RESET_DATA=false      keep the data (only wait for MySQL and migrate)
-#   REWRITE_ENV=true      write .env from the current environment before anything else
-#   MYSQL_WAIT_TRIES=60   tries (5 s apart) to reach MySQL before giving up (production)
+#   RESET_DATA=true|false  see above
+#   REWRITE_ENV=true       write .env from the current environment before anything else
+#   MYSQL_WAIT_TRIES=60    tries (5 s apart) to reach MySQL before giving up (production)
 
 log() { echo "reset.sh: $*"; }
 die() { echo "reset.sh: ERROR: $*" >&2; exit 1; }
@@ -146,7 +155,12 @@ reset_mysql() {
   mysql_task reset
 }
 
-RESET_DATA="${RESET_DATA:-true}"
+if [ "$ENV" = "production" ]
+then
+  RESET_DATA="${RESET_DATA:-false}"
+else
+  RESET_DATA="${RESET_DATA:-true}"
+fi
 
 if [ "$ENV" = "production" ]
 then
