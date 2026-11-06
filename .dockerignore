@@ -4,7 +4,6 @@ __pycache__
 *.pyc
 .idea
 .DS_Store
-migrations
 instance
 db
 generated/*.png

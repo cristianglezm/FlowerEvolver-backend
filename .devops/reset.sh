@@ -1,24 +1,28 @@
 #!/bin/sh
-# Start up script of the containers and daily reset job (cron at 00:00 UTC on PythonAnywhere).
+# Start up script of the containers and daily reset job (run it from cron).
+#
+# The schema comes from the committed migrations (migrations/versions), this script only
+# applies them with `flask db upgrade`. It never creates revisions: after changing a model
+# run `flask db migrate -m "what changed"` on your machine, review the new file in
+# migrations/versions and commit it.
 #
 # The flower rows and generated/<id>.png|json are tied by the flower id (mutations and
 # descendants read the .json of the parent), so they are always reset together:
 #   - generated/            images and genomes
 #   - MySQL database $DB    on $HOST (the database host): dropped and created again
 #   - db/                   sqlite files, used when ENV is not production
-# and then the flask migrations recreate the schema. Nothing else creates the tables.
 #
 # What is reset depends on ENV, because the compose stack runs this on EVERY container start
 # and keeps db_data and generated_data volumes so that a restart keeps the flowers:
 #   ENV=production   keeps the data. Waits for MySQL, checks that DB_USER can log in
-#                    (any MySQL problem is fatal), then only migrates.
+#                    (any MySQL problem is fatal), then upgrades the schema.
 #   any other ENV    resets everything (the daily job). A MySQL problem is only a warning
-#                    here (dev machines and CI have no MySQL) and the migrations go to sqlite.
+#                    here (dev machines and CI have no MySQL) and sqlite is used.
 # RESET_DATA=true|false overrides that, e.g. a daily reset of a production setup:
-#   ENV=production RESET_DATA=true sh .devops/reset.sh   (waits for MySQL, wipes, migrates MySQL)
+#   ENV=production RESET_DATA=true sh .devops/reset.sh   (waits for MySQL, wipes, upgrades MySQL)
 #
 # Run it from the repo root (relative paths); `flask` and `python` must be on the PATH.
-# Settings already present in the environment (docker compose, PythonAnywhere, the shell)
+# Settings already present in the environment (docker compose, the shell, a scheduler)
 # always win over .env, the same rule python-dotenv applies when the app loads .env.
 #
 # Optional:
@@ -202,15 +206,8 @@ else
   fi
 fi
 
-# migrations don't need the kafka consumer or redis
+# the schema only needs the database, not the kafka consumer or redis
 export KAFKA_ENABLED=false REDIS_ENABLED=false
-if [ ! -f migrations/env.py ]
-then
-  flask db init || die "flask db init failed"
-else
-  # bring the database to the last known revision, `flask db migrate` refuses to run otherwise
-  flask db upgrade || die "flask db upgrade failed"
-fi
-flask db migrate || die "flask db migrate failed"
+[ -f migrations/env.py ] || die "migrations/ not found in $(pwd): it is committed to the repo, was it left out of the image?"
 flask db upgrade || die "flask db upgrade failed"
 log "done"

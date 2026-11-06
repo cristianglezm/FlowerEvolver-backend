@@ -32,7 +32,7 @@ KAFKA_RESPONSE_TOPIC=descResponses
 
 # Redis is only used for distributed rate limiting; when disabled (or
 # unreachable) an in-process rate limiter is used instead, which is what
-# you want on hosts without arbitrary outbound TCP access (e.g. PythonAnywhere).
+# you want on hosts without arbitrary outbound TCP access.
 REDIS_ENABLED=False
 REDIS_URL=redis://localhost:6379
 
@@ -46,21 +46,31 @@ METRICS_API_KEY='sk_change_key'
 
 * Run following commands:
     - export FLASK_APP=manage.py
-    - flask db init
-    - flask db migrate
     - flask db upgrade
     - flask run
 
-* `.devops/reset.sh` runs on every container start and as the daily reset job (PythonAnywhere cron, 00:00 UTC). Run it
-  from the repo root. Flower rows and `generated/` files belong together, so they are reset together. With
-  `ENV=production` it keeps the data: it waits for MySQL, checks the login (any problem is fatal) and migrates.
-  With any other `ENV` it wipes `generated/`, `db/` (sqlite) and drops and creates the MySQL database `DB` on `HOST`,
-  then migrates (a MySQL problem is only a warning there, sqlite is used). `RESET_DATA=true|false` overrides that,
-  e.g. `ENV=production RESET_DATA=true sh .devops/reset.sh` for a daily reset of a production setup.
-  The mysql login is `DB_USER` (`USER` is only a fallback: it is the name of the shell user and docker compose prefers
-  the shell over `.env`). Variables already in the environment win over `.env`.
-* Run the tests (from the repo root): `sh .devops/test.sh`. It recreates the dev database (like `.devops/reset.sh`,
-  so it wipes `db/` and `generated/`), runs pytest and flake8. `python -m pytest` alone also works once the database exists.
+* `.devops/reset.sh` runs on every container start and is also the daily reset job when you schedule it. Run it from
+  the repo root. Flower rows and `generated/` files belong together, so they are reset together. With
+  `ENV=production` it keeps the data: it waits for MySQL, checks the login (any problem is fatal) and upgrades the
+  schema. With any other `ENV` it wipes `generated/`, `db/` (sqlite) and drops and creates the MySQL database `DB`
+  on `HOST`, then upgrades the schema (a MySQL problem is only a warning there, sqlite is used).
+  `RESET_DATA=true|false` overrides that, e.g. `ENV=production RESET_DATA=true sh .devops/reset.sh` for a daily
+  reset of a production setup. The mysql login is `DB_USER` (`USER` is only a fallback: it is the name of the shell
+  user and docker compose prefers the shell over `.env`). Variables already in the environment win over `.env`.
+
+### Changing the database schema ###
+
+The schema history is the `migrations/` folder and it is committed. `reset.sh` and the containers only apply it
+(`flask db upgrade`), they never create revisions, so existing data is kept when the schema changes.
+
+* after changing a model in `app/models.py`, on your machine:
+    - `export FLASK_APP=manage.py`
+    - `flask db upgrade` (bring your dev database to the current schema)
+    - `flask db migrate -m "what changed"`
+    - review the new file in `migrations/versions/` (autogenerate does not detect everything, e.g. renames
+      look like a drop plus an add and would lose that column's data) and commit it
+* `flask db check` fails when the models and the migrations differ, `.devops/test.sh` and the CI run it.
+
 
 ## Running docker ##
 
@@ -84,7 +94,7 @@ Before running the script to build the image, change the .env variables if you n
 * pull image (alpine(300MB) or ubuntu(800MB))
     * docker pull cristianglezm/fe:backend-alpine-dev
     * docker pull cristianglezm/fe:backend-ubuntu-dev
-* docker run -dp 5000:5000 -v generated:/app/generated -v migrations:/app/migrations \ 
+* docker run -dp 5000:5000 -v generated:/app/generated \ 
     -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
 * browse to http://localhost:5000/api/flowers to get a list of flowers.
     (use webtools to send request, a rest client or the frontend website.)

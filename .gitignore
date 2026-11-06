@@ -7,7 +7,6 @@ __pycache__
 /*.egg-info
 *.db
 ctags.tmp
-migrations
 instance
 tmp
 *.backup
