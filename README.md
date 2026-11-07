@@ -56,8 +56,7 @@ METRICS_API_KEY='sk_change_key'
   schema. With any other `ENV` it wipes `generated/`, `db/` (sqlite) and drops and creates the MySQL database `DB`
   on `HOST`, then upgrades the schema (a MySQL problem is only a warning there, sqlite is used).
   `RESET_DATA=true|false` overrides that, e.g. `ENV=production RESET_DATA=true sh .devops/reset.sh` for a daily
-  reset of a production setup. The mysql login is `DB_USER` (`USER` is only a fallback: it is the name of the shell
-  user and docker compose prefers the shell over `.env`). Variables already in the environment win over `.env`.
+  reset of a production setup. The database is set with `DB_HOST`, `DB_NAME`, `DB_USER` and `DB_PASSWD`. Variables already in the environment win over `.env`.
 
 ### Changing the database schema ###
 

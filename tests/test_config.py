@@ -21,15 +21,12 @@ def test_the_db_names_build_the_mysql_uri(monkeypatch):
     assert uri == 'mysql://fe:pw@db/flowers'
 
 
-def test_the_new_names_win_over_the_legacy_ones(monkeypatch):
+def test_the_old_generic_names_are_not_read(monkeypatch):
+    # USER is your shell login, HOST/DB/PASSWD are too generic: they must never end up in the uri
     uri = production_uri(monkeypatch, DB_HOST='db', DB_NAME='flowers', DB_USER='fe', DB_PASSWD='pw',
                          HOST='other', DB='other', USER='someone-else', PASSWD='other')
     assert uri == 'mysql://fe:pw@db/flowers'
-
-
-def test_the_legacy_names_still_work_as_fallbacks(monkeypatch):
-    uri = production_uri(monkeypatch, HOST='db', DB='flowers', USER='legacy', PASSWD='pw')
-    assert uri == 'mysql://legacy:pw@db/flowers'
+    assert production_uri(monkeypatch, HOST='db', DB='flowers', USER='legacy', PASSWD='pw') == 'mysql://:@/'
 
 
 def test_special_characters_in_the_password_are_escaped(monkeypatch):

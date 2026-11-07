@@ -44,10 +44,10 @@ if [ "$REWRITE_ENV" = "true" ]
 then
   log "rewriting .env from the environment"
   {
-    echo "DB_HOST=${DB_HOST:-$HOST}"
-    echo "DB_NAME=${DB_NAME:-$DB}"
-    echo "DB_USER=${DB_USER:-$USER}"
-    echo "DB_PASSWD=${DB_PASSWD:-$PASSWD}"
+    echo "DB_HOST=$DB_HOST"
+    echo "DB_NAME=$DB_NAME"
+    echo "DB_USER=$DB_USER"
+    echo "DB_PASSWD=$DB_PASSWD"
     echo "ENV=$ENV"
     echo "ORIGINS=$ORIGINS"
     echo "FLOWER_LIMIT=$FLOWER_LIMIT"
@@ -80,22 +80,9 @@ then
   done < .env
 fi
 
-# The database settings are DB_HOST, DB_NAME, DB_USER and DB_PASSWD. The old names (HOST, DB, USER,
-# PASSWD) still work as fallbacks, but they are generic: USER is the login name of the shell user and
-# docker compose prefers the shell over .env, so do not rely on them.
-for pair in DB_HOST:HOST DB_NAME:DB DB_USER:USER DB_PASSWD:PASSWD
-do
-  new="${pair%%:*}"
-  old="${pair##*:}"
-  eval "new_value=\${$new}"
-  eval "old_value=\${$old}"
-  if [ -z "$new_value" ] && [ -n "$old_value" ]
-  then
-    log "$new is not set, falling back to $old"
-    export "$new=$old_value"
-  fi
-done
-
+# The database settings are DB_HOST, DB_NAME, DB_USER and DB_PASSWD. The old names (HOST, DB, USER and
+# PASSWD) are not read anymore: they are generic (USER is the login name of the shell user, and docker
+# compose prefers the shell over .env). A leftover old .env is reported in production below.
 export FLASK_APP=manage.py
 
 # mysql_check: can ${DB_USER} log in to ${DB_NAME}?   mysql_reset: drop and create ${DB_NAME}
@@ -178,7 +165,12 @@ then
   for var in DB_HOST DB_NAME DB_USER DB_PASSWD
   do
     eval "value=\${$var}"
-    [ -n "$value" ] || die "$var is empty or not set (ENV=production needs DB_HOST, DB_NAME, DB_USER and DB_PASSWD)"
+    if [ -z "$value" ]
+    then
+      hint=""
+      [ -n "$HOST$DB$PASSWD" ] && hint=" (HOST, DB and PASSWD are the old names, rename them in .env to DB_HOST, DB_NAME and DB_PASSWD)"
+      die "$var is empty or not set, ENV=production needs DB_HOST, DB_NAME, DB_USER and DB_PASSWD$hint"
+    fi
   done
   if [ "$DB_HOST" = "localhost" ] || [ "$DB_HOST" = "127.0.0.1" ]
   then

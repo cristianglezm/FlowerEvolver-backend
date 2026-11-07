@@ -3,7 +3,8 @@ services:
     build:
       context: .
       dockerfile: dockerfile.alpine
-    image: "docker.io/cristianglezm/fe:backend-alpine-dev"
+    # BACKEND_IMAGE lets the CI run the image it just built; without it the published image is used
+    image: "${BACKEND_IMAGE:-docker.io/cristianglezm/fe:backend-alpine-dev}"
     hostname: app
     container_name: app
     ports:

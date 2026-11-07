@@ -7,7 +7,9 @@ on:
   workflow_call:
 
 env:
-  IMAGE: docker.io/cristianglezm/fe:backend-alpine-dev
+  # a name that does not exist on Docker Hub: if compose ever tried to pull it, the job would fail
+  # instead of silently testing the published image
+  BACKEND_IMAGE: fe-backend:ci
 
 jobs:
   test:
@@ -69,7 +71,8 @@ jobs:
       with:
         context: .
         file: dockerfile.alpine
-        tags: ${{ env.IMAGE }}
+        tags: ${{ env.BACKEND_IMAGE }}
+        labels: org.opencontainers.image.revision=${{ github.sha }}
         load: true
         push: false
         cache-from: type=gha,scope=backend
@@ -89,9 +92,19 @@ jobs:
 
     - name: Start the stack with the image that was just built
       run: |
-        # no `docker compose pull` for the app: it would replace the image above with the published one
         docker compose up -d --no-build --remove-orphans
         docker compose ps
+
+    - name: Check that the app container runs the image of this commit
+      run: |
+        built=$(docker image inspect "$BACKEND_IMAGE" --format '{{.Id}}')
+        running=$(docker inspect app --format '{{.Image}}')
+        revision=$(docker inspect app --format '{{index .Config.Labels "org.opencontainers.image.revision"}}')
+        echo "built:    $built"
+        echo "running:  $running"
+        echo "revision: $revision (commit ${{ github.sha }})"
+        test "$built" = "$running"
+        test "$revision" = "${{ github.sha }}"
 
     - name: Run the e2e tests
       # waits for /health to report database, kafka and redis ok (describe and kafka start slowly)

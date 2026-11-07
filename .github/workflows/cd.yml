@@ -33,6 +33,7 @@ jobs:
         context: .
         file: dockerfile.alpine
         tags: docker.io/cristianglezm/fe:backend-alpine-dev
+        labels: org.opencontainers.image.revision=${{ github.sha }}
         push: true
         # the layers CI just built (same commit), so this does not compile flowerevolver again
         cache-from: type=gha,scope=backend
