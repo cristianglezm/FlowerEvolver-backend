@@ -12,7 +12,15 @@ scrape_configs:
       - targets: ['app:5000']
     authorization:
       # must match METRICS_API_KEY (see the comment in .env for every place to change)
-      credentials: "passwd"
+      credentials: "sk_change_key"
+
+  - job_name: 'flowerevolver-describe'
+    scheme: http
+    static_configs:
+      - targets: ['describe:8000']
+    authorization:
+      # compose gives describe the same METRICS_API_KEY
+      credentials: "sk_change_key"
 
   - job_name: 'redis'
     static_configs:

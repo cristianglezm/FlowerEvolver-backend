@@ -6,6 +6,10 @@ def _bool_env(name, default=False):
     return os.getenv(name, default=str(default)).strip().lower() in ('true', '1', 'yes')
 
 
+def _db_env(name, legacy_name):
+    return os.getenv(name) or os.getenv(legacy_name) or ''
+
+
 class Config(object):
     ENV = 'development'
     DEBUG = True
@@ -34,10 +38,11 @@ class ProductionConfig(Config):
     DEBUG = False
     ENV = 'production'
     FLOWER_LIMIT = os.getenv('FLOWER_LIMIT', default=5000)
-    # DB_USER, USER is the legacy name (and the login name of the shell user, so it is a bad key)
+    # DB_HOST, DB_NAME, DB_USER, DB_PASSWD. The old names HOST, DB, USER, PASSWD are only fallbacks
+    # (USER is the login name of the shell user, so it is a bad key).
     SQLALCHEMY_DATABASE_URI = (
-        f"mysql://{quote_plus(os.getenv('DB_USER') or os.getenv('USER') or '')}:{quote_plus(os.getenv('PASSWD') or '')}"
-        f"@{os.getenv('HOST')}/{os.getenv('DB')}")
+        f"mysql://{quote_plus(_db_env('DB_USER', 'USER'))}:{quote_plus(_db_env('DB_PASSWD', 'PASSWD'))}"
+        f"@{_db_env('DB_HOST', 'HOST')}/{_db_env('DB_NAME', 'DB')}")
     SQLALCHEMY_POOL_RECYCLE = 299
     SQLALCHEMY_POOL_TIMEOUT = 20
     # @property

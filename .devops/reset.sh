@@ -9,7 +9,7 @@
 # The flower rows and generated/<id>.png|json are tied by the flower id (mutations and
 # descendants read the .json of the parent), so they are always reset together:
 #   - generated/            images and genomes
-#   - MySQL database $DB    on $HOST (the database host): dropped and created again
+#   - MySQL database $DB_NAME on $DB_HOST: dropped and created again
 #   - db/                   sqlite files, used when ENV is not production
 #
 # What is reset depends on ENV, because the compose stack runs this on EVERY container start
@@ -44,10 +44,10 @@ if [ "$REWRITE_ENV" = "true" ]
 then
   log "rewriting .env from the environment"
   {
-    echo "HOST=$HOST"
-    echo "DB=$DB"
-    echo "PASSWD=$PASSWD"
+    echo "DB_HOST=${DB_HOST:-$HOST}"
+    echo "DB_NAME=${DB_NAME:-$DB}"
     echo "DB_USER=${DB_USER:-$USER}"
+    echo "DB_PASSWD=${DB_PASSWD:-$PASSWD}"
     echo "ENV=$ENV"
     echo "ORIGINS=$ORIGINS"
     echo "FLOWER_LIMIT=$FLOWER_LIMIT"
@@ -80,18 +80,25 @@ then
   done < .env
 fi
 
-# DB_USER is the name of the mysql login. The old name, USER, is the login name of the shell
-# user too (docker compose substitutes the shell's value over .env), so it is only a fallback.
-if [ -z "$DB_USER" ] && [ -n "$USER" ]
-then
-  log "DB_USER is not set, falling back to USER=$USER"
-  DB_USER="$USER"
-fi
-export DB_USER
+# The database settings are DB_HOST, DB_NAME, DB_USER and DB_PASSWD. The old names (HOST, DB, USER,
+# PASSWD) still work as fallbacks, but they are generic: USER is the login name of the shell user and
+# docker compose prefers the shell over .env, so do not rely on them.
+for pair in DB_HOST:HOST DB_NAME:DB DB_USER:USER DB_PASSWD:PASSWD
+do
+  new="${pair%%:*}"
+  old="${pair##*:}"
+  eval "new_value=\${$new}"
+  eval "old_value=\${$old}"
+  if [ -z "$new_value" ] && [ -n "$old_value" ]
+  then
+    log "$new is not set, falling back to $old"
+    export "$new=$old_value"
+  fi
+done
 
 export FLASK_APP=manage.py
 
-# mysql_check: can ${DB_USER} log in to ${DB}?   mysql_reset: drop and create ${DB}
+# mysql_check: can ${DB_USER} log in to ${DB_NAME}?   mysql_reset: drop and create ${DB_NAME}
 # exit codes: 0 ok, 1 not reachable yet (retry), 2 refused (credentials/privileges), 3 no mysqlclient
 mysql_task() {
   python - "$1" <<'PY'
@@ -102,10 +109,10 @@ except ImportError:
     print("mysqlclient is not installed", file=sys.stderr)
     sys.exit(3)
 task = sys.argv[1]
-db = os.environ["DB"]
+db = os.environ["DB_NAME"]
 try:
-    conn = MySQLdb.connect(host=os.environ["HOST"], user=os.environ["DB_USER"],
-                           passwd=os.environ["PASSWD"], connect_timeout=5,
+    conn = MySQLdb.connect(host=os.environ["DB_HOST"], user=os.environ["DB_USER"],
+                           passwd=os.environ["DB_PASSWD"], connect_timeout=5,
                            **({"db": db} if task == "check" else {}))
     if task == "reset":
         cur = conn.cursor()
@@ -127,7 +134,7 @@ wait_for_mysql() {
     mysql_task check
     status=$?
     case "$status" in
-      0) log "MySQL is up and ${DB_USER}@${HOST}/${DB} can log in"; return 0 ;;
+      0) log "MySQL is up and ${DB_USER}@${DB_HOST}/${DB_NAME} can log in"; return 0 ;;
       3) return 1 ;;
       2)
         # the mysql image only accepts connections after it created its user, so a few
@@ -135,8 +142,8 @@ wait_for_mysql() {
         denied=$((denied + 1))
         if [ "$denied" -ge 3 ]
         then
-          echo "reset.sh: ERROR: MySQL is reachable but refuses ${DB_USER}@${HOST}/${DB}." >&2
-          echo "  - DB_USER / PASSWD / DB here must be the ones MySQL was created with." >&2
+          echo "reset.sh: ERROR: MySQL is reachable but refuses ${DB_USER}@${DB_HOST}/${DB_NAME}." >&2
+          echo "  - DB_USER / DB_PASSWD / DB_NAME here must be the ones MySQL was created with." >&2
           echo "  - the mysql image creates its user only when its data volume is empty:" >&2
           echo "    after changing them run 'compose down -v' to drop the db volume." >&2
           echo "  - docker compose reads \${DB_USER} from the shell before .env, check" >&2
@@ -146,16 +153,16 @@ wait_for_mysql() {
         ;;
       *) denied=0 ;;
     esac
-    log "MySQL not ready at ${HOST}:3306 (attempt ${attempt}/${tries}), sleeping"
+    log "MySQL not ready at ${DB_HOST}:3306 (attempt ${attempt}/${tries}), sleeping"
     attempt=$((attempt + 1))
     sleep 5
   done
-  echo "reset.sh: ERROR: gave up waiting for MySQL at ${HOST}:3306" >&2
+  echo "reset.sh: ERROR: gave up waiting for MySQL at ${DB_HOST}:3306" >&2
   return 1
 }
 
 reset_mysql() {
-  log "dropping and creating the MySQL database ${DB} on ${HOST}"
+  log "dropping and creating the MySQL database ${DB_NAME} on ${DB_HOST}"
   mysql_task reset
 }
 
@@ -168,22 +175,22 @@ fi
 
 if [ "$ENV" = "production" ]
 then
-  for var in HOST DB DB_USER PASSWD
+  for var in DB_HOST DB_NAME DB_USER DB_PASSWD
   do
     eval "value=\${$var}"
-    [ -n "$value" ] || die "$var is empty or not set (ENV=production needs HOST, DB, DB_USER and PASSWD)"
+    [ -n "$value" ] || die "$var is empty or not set (ENV=production needs DB_HOST, DB_NAME, DB_USER and DB_PASSWD)"
   done
-  if [ "$HOST" = "localhost" ] || [ "$HOST" = "127.0.0.1" ]
+  if [ "$DB_HOST" = "localhost" ] || [ "$DB_HOST" = "127.0.0.1" ]
   then
-    log "warning: HOST=$HOST, inside a container the database is another host (compose sets HOST=db)"
+    log "warning: DB_HOST=$DB_HOST, inside a container the database is another host (compose sets DB_HOST=db)"
   fi
-  log "production: ${DB_USER}@${HOST}/${DB}, kafka=${KAFKA_ENABLED:-false}, redis=${REDIS_ENABLED:-false}, reset=${RESET_DATA}"
+  log "production: ${DB_USER}@${DB_HOST}/${DB_NAME}, kafka=${KAFKA_ENABLED:-false}, redis=${REDIS_ENABLED:-false}, reset=${RESET_DATA}"
   wait_for_mysql || exit 1
   if [ "$RESET_DATA" = "true" ]
   then
     rm -f generated/*.png generated/*.json
     log "removed generated files"
-    reset_mysql || die "could not reset the MySQL database (does ${DB_USER} have DROP/CREATE on ${DB}?)"
+    reset_mysql || die "could not reset the MySQL database (does ${DB_USER} have DROP/CREATE on ${DB_NAME}?)"
   fi
 else
   log "ENV=${ENV:-development}: sqlite database, reset=${RESET_DATA}"
@@ -199,9 +206,9 @@ else
     fi
     rm -f generated/*.png generated/*.json
     log "removed generated files"
-    if [ -n "$HOST" ] && [ -n "$DB" ] && [ -n "$DB_USER" ]
+    if [ -n "$DB_HOST" ] && [ -n "$DB_NAME" ] && [ -n "$DB_USER" ]
     then
-      reset_mysql || log "WARNING: MySQL database ${DB} on ${HOST} was NOT reset (not production, continuing)"
+      reset_mysql || log "WARNING: MySQL database ${DB_NAME} on ${DB_HOST} was NOT reset (not production, continuing)"
     fi
   fi
 fi

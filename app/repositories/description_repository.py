@@ -15,6 +15,10 @@ def list_descriptions(filters, limit=0, offset=0):
     return query.all()
 
 
+def total_count():
+    return Descriptions.query.count()
+
+
 def create(request_id, description):
     desc = Descriptions(id=request_id, description=description)
     db.session.add(desc)

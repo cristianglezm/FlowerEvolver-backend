@@ -4,7 +4,7 @@ import time
 import requests
 
 SERVICE_URL = "http://localhost:5000"
-METRICS_API_KEY = os.getenv("METRICS_API_KEY", "passwd")
+METRICS_API_KEY = os.getenv("METRICS_API_KEY", "sk_change_key")
 DESCRIPTION_TIMEOUT_SECONDS = 60
 HEALTH_TIMEOUT_SECONDS = 180
 

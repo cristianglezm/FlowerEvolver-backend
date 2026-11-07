@@ -8,6 +8,7 @@ from ..repositories import flower_repository, descendant_repository
 from ..pagination import parse_list_args, count_fields
 from ..services.flower_evolver import reproduce, FlowerEvolverError
 from ..background import kafka_producer
+from ..metrics import FLOWERS_GENERATED_TOTAL
 from .. import db
 from .flowers import flower_fields, is_over_limit
 
@@ -85,7 +86,7 @@ class DescendantResource(Resource):
 
     @cross_origin()
     def post(self):
-        if(is_over_limit()):
+        if(is_over_limit('reproduction')):
             logger.info("descendant_post_over_limit")
             return "max number of flowers reached, wait for tomorrow", 403
         args = descendant_post_parser.parse_args()
@@ -106,6 +107,7 @@ class DescendantResource(Resource):
                 return f"Something went wrong then repoducing flowers with id {descendant.father} and {descendant.mother}", 400
             descendant_repository.save(descendant)
             logger.info("descendant_post_reproduce", father=descendant.father, mother=descendant.mother, id=descendant.id)
+            FLOWERS_GENERATED_TOTAL.labels(kind="reproduction").inc()
             kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         else:

@@ -19,7 +19,7 @@ services:
         condition: service_healthy
     environment:
       - ENV=production
-      - HOST=db
+      - DB_HOST=db
       - REDIS_ENABLED=true
       - REDIS_URL=redis://redis:6379
       - KAFKA_ENABLED=true
@@ -35,10 +35,11 @@ services:
     hostname: db
     container_name: db
     environment:
-      - MYSQL_DATABASE=${DB}
+      # the mysql image creates this user with ALL privileges on MYSQL_DATABASE, nothing else to set up
+      - MYSQL_DATABASE=${DB_NAME}
       - MYSQL_USER=${DB_USER}
-      - MYSQL_PASSWORD=${PASSWD}
-      - MYSQL_ROOT_PASSWORD=${PASSWD}
+      - MYSQL_PASSWORD=${DB_PASSWD}
+      - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWD}
     volumes:
       - db_data:/var/lib/mysql:Z
     healthcheck:

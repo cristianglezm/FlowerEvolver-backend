@@ -8,6 +8,7 @@ from ..repositories import flower_repository, mutation_repository
 from ..pagination import parse_list_args, count_fields
 from ..services.flower_evolver import mutateFlower, FlowerEvolverError
 from ..background import kafka_producer
+from ..metrics import FLOWERS_GENERATED_TOTAL
 from .. import db
 from .flowers import flower_fields, is_over_limit
 
@@ -67,7 +68,7 @@ class MutationResource(Resource):
 
     @cross_origin()
     def post(self):
-        if(is_over_limit()):
+        if(is_over_limit('mutation')):
             logger.info("mutation_post_over_limit")
             return "max number of flowers reached, wait for tomorrow", 403
         args = mutation_post_parser.parse_args()
@@ -86,6 +87,7 @@ class MutationResource(Resource):
                 return f"Something went wrong when making mutations with original {mutation.original}", 400
             mutation_repository.save(mutation)
             logger.info("mutation_post_success", original=mutation.original, id=mutation.id)
+            FLOWERS_GENERATED_TOTAL.labels(kind="mutation").inc()
             kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         else:

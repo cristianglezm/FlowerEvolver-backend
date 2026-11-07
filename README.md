@@ -9,14 +9,15 @@ Flower Evolver backend, frontend can be found [here](https://github.com/cristian
 * git clone https://github.com/cristianglezm/FlowerEvolver-backend
 * cd FlowerEvolver-backend
 * use Python 3.12 (the pinned dependencies, e.g. pydantic-core, have no wheels for 3.14 yet)
-* pip install -r requirements.txt
+* pip install -r requirements-dev.txt (runtime dependencies plus pytest, flake8 and requests for the e2e script;
+  the images only install requirements.txt)
 * change .env as needed
 
 ```
-HOST=localhost
-DB=flowerevolver
-PASSWD='passwd'
-DB_USER=user
+DB_HOST=localhost
+DB_NAME=flowerevolver
+DB_USER=fe
+DB_PASSWD='passwd'
 ENV=production | development
 ORIGINS=*
 FLOWER_LIMIT=5000
@@ -79,21 +80,18 @@ read the README-docker.md in [frontend](https://github.com/cristianglezm/FlowerE
 
 Flowers are generated with the [flowerevolver](https://github.com/cristianglezm/FlowerEvolver-WASM)
 python package (installed from requirements.txt), no executable is needed anymore.
-PyPI only has glibc (manylinux) x86_64 wheels, so the Ubuntu image installs it directly while the
-Alpine image compiles it from source in a build stage (needs network access to GitHub, ~1-2 minutes).
-On arm64 hosts always compile from source (use the Alpine image or add a build stage to the Ubuntu one).
+PyPI has no musl wheels (and no Linux arm64 ones), so the image compiles it from source in a build stage
+(needs network access to GitHub, a few minutes). There is only the Alpine image.
 
 You can also pull the images from this
 [repo](https://hub.docker.com/repository/docker/cristianglezm/fe) and change the env variables as needed.
 
 Before running the script to build the image, change the .env variables if you need to.
 
-* build image (alpine or ubuntu)
-    * sh .devops/build_docker.sh "alpine"
-    * sh .devops/build_docker.sh "ubuntu"
-* pull image (alpine(300MB) or ubuntu(800MB))
+* build image
+    * sh .devops/build_docker.sh
+* pull image (~300MB)
     * docker pull cristianglezm/fe:backend-alpine-dev
-    * docker pull cristianglezm/fe:backend-ubuntu-dev
 * docker run -dp 5000:5000 -v generated:/app/generated \ 
     -v db:/app/db cristianglezm/fe:backend-alpine-dev --env-file .env --hostname backend
 * browse to http://localhost:5000/api/flowers to get a list of flowers.

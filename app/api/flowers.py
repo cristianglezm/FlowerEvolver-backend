@@ -11,6 +11,7 @@ from ..services.flower_evolver import makeFlower, drawFlower, FlowerEvolverError
 from ..repositories import flower_repository
 from ..pagination import parse_list_args, count_fields
 from ..background import kafka_producer
+from ..metrics import FLOWERS_GENERATED_TOTAL, FLOWER_LIMIT_REACHED_TOTAL
 from .. import db
 
 logger = structlog.get_logger(__name__)
@@ -29,8 +30,11 @@ flower_list_fields = {
 flower_post_parser = reqparse.RequestParser()
 
 
-def is_over_limit():
-    return flower_repository.total_count() > int(current_app.config['FLOWER_LIMIT'])
+def is_over_limit(kind='create'):
+    over = flower_repository.total_count() > int(current_app.config['FLOWER_LIMIT'])
+    if over:
+        FLOWER_LIMIT_REACHED_TOTAL.labels(kind=kind).inc()
+    return over
 
 
 class FlowerResource(Resource):
@@ -82,6 +86,7 @@ class FlowerResource(Resource):
             flower.genome = f"{flower.id}.json"
             flower.image = f"{flower.id}.png"
             db.session.commit()
+            FLOWERS_GENERATED_TOTAL.labels(kind="create").inc()
             kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
             return marshal(flower, flower_fields)
         logger.info("flower_post_share_flower")
@@ -100,5 +105,6 @@ class FlowerResource(Resource):
         flower.genome = f"{flower.id}.json"
         flower.image = f"{flower.id}.png"
         db.session.commit()
+        FLOWERS_GENERATED_TOTAL.labels(kind="share").inc()
         kafka_producer.request_description(current_app, flower.id, path.resolve() / flower.image)
         return marshal(flower, flower_fields)
