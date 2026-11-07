@@ -8,12 +8,13 @@ logger = structlog.get_logger(__name__)
 
 _producer = None
 _thread = None
+_last_error = None
 _RETRY_DELAY_SECONDS = 5
 _SEND_TIMEOUT_SECONDS = 2
 
 
 def _connect(app):
-    global _producer
+    global _producer, _last_error
     from kafka import KafkaProducer
     from kafka.errors import KafkaError
     servers = app.config['KAFKA_BOOTSTRAP_SERVERS']
@@ -24,8 +25,10 @@ def _connect(app):
                 value_serializer=lambda v: json.dumps(v).encode('utf-8'),
                 max_block_ms=_SEND_TIMEOUT_SECONDS * 1000,
             )
+            _last_error = None
             logger.info("kafka_producer_initialized", bootstrap_servers=servers)
         except KafkaError as e:
+            _last_error = str(e)
             logger.warning("kafka_producer_unavailable", error=str(e), retry_in=_RETRY_DELAY_SECONDS)
             threading.Event().wait(_RETRY_DELAY_SECONDS)
 
@@ -42,6 +45,22 @@ def init_producer(app):
 
 def get_producer():
     return _producer
+
+
+def is_connected():
+    # KafkaProducer() only returns once it bootstrapped against the cluster (it raises a
+    # KafkaError after its timeout otherwise), so having a producer means being connected.
+    # Do not use producer.bootstrap_connected(): in kafka-python 3.x it is True only WHILE
+    # the bootstrap is still running and False once it succeeded.
+    return _producer is not None
+
+
+def is_alive():
+    return _thread is not None and _thread.is_alive()
+
+
+def last_error():
+    return _last_error
 
 
 def request_description(app, request_id, image_path):

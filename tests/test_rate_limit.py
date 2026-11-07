@@ -1,6 +1,8 @@
 import os
+import uuid
 import pytest
 from flask import Flask, jsonify
+from app import rate_limit
 from app.rate_limit import PerClientBucketFactory, register_rate_limiting
 from pyrate_limiter import Duration, InMemoryBucket, Rate
 
@@ -41,12 +43,24 @@ def get(client, path, ip='10.0.0.1'):
     return client.get(path, environ_base={'REMOTE_ADDR': ip})
 
 
+@pytest.fixture(autouse=True)
+def private_redis_keys(monkeypatch):
+    """TEST_REDIS_URL may be a shared redis (e.g. the one of a running compose stack): use a
+    key prefix of our own and delete only those keys, never flush the database."""
+    prefix = f'test-rate-limit-{uuid.uuid4().hex}'
+    monkeypatch.setattr(rate_limit, 'RATE_LIMIT_KEY_PREFIX', prefix)
+    yield prefix
+    if REDIS_URL:
+        import redis
+        client = redis.Redis.from_url(REDIS_URL)
+        for key in client.scan_iter(f'{prefix}:*'):
+            client.delete(key)
+
+
 @pytest.fixture(params=['memory', pytest.param('redis', marks=pytest.mark.skipif(
     not REDIS_URL, reason='set TEST_REDIS_URL to run the redis backend'))])
 def client(request):
     app = make_app(redis_enabled=request.param == 'redis')
-    if request.param == 'redis':
-        app.extensions['redis_client'].flushdb()
     return app.test_client()
 
 
@@ -100,11 +114,10 @@ def test_tracked_clients_stay_bounded():
 
 
 @pytest.mark.skipif(not REDIS_URL, reason='set TEST_REDIS_URL to run the redis backend')
-def test_redis_keys_expire():
+def test_redis_keys_expire(private_redis_keys):
     app = make_app(redis_enabled=True)
     redis_client = app.extensions['redis_client']
-    redis_client.flushdb()
     get(app.test_client(), '/api/flowers')
-    keys = redis_client.keys('flowerevolver-backend-rate-limit:*')
+    keys = list(redis_client.scan_iter(f'{private_redis_keys}:*'))
     assert len(keys) == 1
     assert 0 < redis_client.ttl(keys[0]) <= 120

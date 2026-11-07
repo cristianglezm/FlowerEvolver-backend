@@ -14,13 +14,13 @@ HTTP_REQUEST_LATENCY_SECONDS = Histogram(
 
 FLOWER_EVOLVER_INVOCATIONS_TOTAL = Counter(
     "flower_evolver_invocations_total",
-    "Total number of FlowerEvolver binary invocations.",
+    "Total number of FlowerEvolver library invocations.",
     ["operation", "status"]
 )
 
 FLOWER_EVOLVER_INVOCATION_DURATION_SECONDS = Histogram(
     "flower_evolver_invocation_duration_seconds",
-    "Time taken by a single FlowerEvolver binary invocation.",
+    "Time taken by a single FlowerEvolver library invocation.",
     ["operation"]
 )
 

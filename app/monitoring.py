@@ -36,14 +36,24 @@ def _database_status():
 
 
 def _kafka_status():
+    """not_configured | ok | connecting | error
+
+    ok          the producer and the consumer of this worker are connected to the cluster
+    connecting  they are still starting (kafka and the other services start slowly)
+    error       a thread died or the last connection attempt failed
+    """
     if not current_app.config['KAFKA_ENABLED']:
         return 'not_configured'
-    producer = kafka_producer.get_producer()
-    if producer is None or not producer.bootstrap_connected():
+    if kafka_producer.is_connected() and kafka_consumer.is_connected():
+        return 'ok'
+    if not (kafka_producer.is_alive() or kafka_producer.is_connected()) or not kafka_consumer.is_alive():
+        logger.error("health_kafka_thread_not_running")
         return 'error'
-    if not kafka_consumer.is_alive():
+    error = kafka_producer.last_error() if not kafka_producer.is_connected() else kafka_consumer.last_error()
+    if error:
+        logger.warning("health_kafka_not_connected", error=error)
         return 'error'
-    return 'ok'
+    return 'connecting'
 
 
 def _redis_status():

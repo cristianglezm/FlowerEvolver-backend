@@ -6,6 +6,7 @@ import requests
 SERVICE_URL = "http://localhost:5000"
 METRICS_API_KEY = os.getenv("METRICS_API_KEY", "passwd")
 DESCRIPTION_TIMEOUT_SECONDS = 60
+HEALTH_TIMEOUT_SECONDS = 180
 
 
 def fail(msg):
@@ -26,14 +27,20 @@ def test_readyz():
 
 
 def test_health_reports_kafka_and_redis_configured():
-    r = requests.get(f"{SERVICE_URL}/health")
-    if r.status_code != 200:
-        fail("health returned non-200")
-    components = r.json().get("components", {})
-    if components.get("kafka") != "ok":
-        fail(f"expected kafka to be ok, got {components.get('kafka')}")
-    if components.get("redis") != "ok":
-        fail(f"expected redis to be ok, got {components.get('redis')}")
+    # kafka, redis and describe start slowly: wait until /health says everything is up
+    deadline = time.time() + HEALTH_TIMEOUT_SECONDS
+    last = None
+    while time.time() < deadline:
+        try:
+            r = requests.get(f"{SERVICE_URL}/health", timeout=5)
+            last = (r.status_code, r.json())
+            components = last[1].get("components", {})
+            if r.status_code == 200 and components.get("kafka") == "ok" and components.get("redis") == "ok":
+                return
+        except (requests.RequestException, ValueError) as e:
+            last = (None, str(e))
+        time.sleep(3)
+    fail(f"/health did not report kafka and redis ok within {HEALTH_TIMEOUT_SECONDS}s, last answer: {last}")
 
 
 def test_metrics_requires_api_key():
