@@ -57,6 +57,10 @@ services:
     image: "docker.io/cristianglezm/fe:describe"
     hostname: describe
     container_name: describe
+    # the image runs 4 gunicorn workers by default and each loads its own ONNX models (~800 MB each): too much for
+    # a laptop or a CI runner that also runs Kafka, MySQL, Prometheus... One worker is enough here (DESCRIBE_WORKERS).
+    command: ["gunicorn", "-c", "gunicorn_config.py", "-w", "${DESCRIBE_WORKERS:-1}", "-k", "uvicorn.workers.UvicornWorker",
+              "app.main:app", "--bind", "0.0.0.0:8000"]
     ports:
       - "8000:8000"
     environment:

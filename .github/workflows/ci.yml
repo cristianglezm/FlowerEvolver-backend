@@ -108,12 +108,21 @@ jobs:
         test "$revision" = "${{ github.sha }}"
 
     - name: Run the e2e tests
-      # waits for /health to report database, kafka and redis ok (describe and kafka start slowly)
+      # waits for /readyz (the app waits for MySQL and runs the migrations), then for /health to report kafka and redis ok
+      env:
+        DESCRIPTION_TIMEOUT_SECONDS: "120"
       run: python tests/e2e/e2e_test.py
 
     - name: Show the logs when something failed
       if: failure()
       run: |
+        echo "::group::resources"
+        nproc; free -m
+        docker stats --no-stream || true
+        for service in app db kafka describe redis; do
+          echo "$service: $(docker inspect -f 'status={{.State.Status}} oomkilled={{.State.OOMKilled}} exit={{.State.ExitCode}}' "$service" || true)"
+        done
+        echo "::endgroup::"
         docker compose ps -a
         for service in app db kafka describe redis; do
           echo "::group::logs of $service"

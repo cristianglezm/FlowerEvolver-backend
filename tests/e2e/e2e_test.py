@@ -5,13 +5,52 @@ import requests
 
 SERVICE_URL = "http://localhost:5000"
 METRICS_API_KEY = os.getenv("METRICS_API_KEY", "sk_change_key")
-DESCRIPTION_TIMEOUT_SECONDS = 60
-HEALTH_TIMEOUT_SECONDS = 180
+DESCRIBE_URL = os.getenv("DESCRIBE_URL", "http://localhost:8000")
+DESCRIPTION_TIMEOUT_SECONDS = int(os.getenv("DESCRIPTION_TIMEOUT_SECONDS", "60"))
+HEALTH_TIMEOUT_SECONDS = int(os.getenv("HEALTH_TIMEOUT_SECONDS", "180"))
 
 
 def fail(msg):
     print(f"[FAIL] {msg}")
     sys.exit(1)
+
+
+def wait_for_backend():
+    """Right after `compose up` the port may be open (the proxy accepts) while the app is still waiting for MySQL and
+    running the migrations: connections are reset or refused. Poll /readyz (needs the database) until it answers 200."""
+    print(f"[INFO] Waiting up to {HEALTH_TIMEOUT_SECONDS}s for the backend to be ready...")
+    deadline = time.time() + HEALTH_TIMEOUT_SECONDS
+    last = None
+    while time.time() < deadline:
+        try:
+            r = requests.get(f"{SERVICE_URL}/readyz", timeout=5)
+            if r.status_code == 200:
+                print("[OK] backend is ready")
+                return
+            last = f"HTTP {r.status_code}"
+        except requests.RequestException as e:
+            last = type(e).__name__
+        time.sleep(2)
+    fail(f"the backend was not ready within {HEALTH_TIMEOUT_SECONDS}s (last: {last}). Look at the logs of the app container")
+
+
+def wait_for_describe():
+    """FlowerEvolver-describe loads its ONNX models before it consumes anything. On a slow machine that takes a while,
+    and the clock of the description test must not run during it: wait until its /health says models, kafka and redis ok."""
+    print(f"[INFO] Waiting up to {HEALTH_TIMEOUT_SECONDS}s for FlowerEvolver-describe ({DESCRIBE_URL})...")
+    deadline = time.time() + HEALTH_TIMEOUT_SECONDS
+    last = None
+    while time.time() < deadline:
+        try:
+            r = requests.get(f"{DESCRIBE_URL}/health", timeout=5)
+            if r.status_code == 200:
+                print("[OK] describe is ready")
+                return
+            last = f"HTTP {r.status_code} {r.text[:200]}"
+        except requests.RequestException as e:
+            last = type(e).__name__
+        time.sleep(2)
+    fail(f"describe was not healthy within {HEALTH_TIMEOUT_SECONDS}s (last: {last}). Look at the logs and the memory of the describe container")
 
 
 def test_healthz():
@@ -96,9 +135,11 @@ def test_kafka_description_round_trip(flower_id):
 
 if __name__ == "__main__":
     print("[INFO] Running E2E tests...")
+    wait_for_backend()
     test_healthz()
     test_readyz()
     test_health_reports_kafka_and_redis_configured()
+    wait_for_describe()
     test_metrics_requires_api_key()
 
     father = test_create_flower()
