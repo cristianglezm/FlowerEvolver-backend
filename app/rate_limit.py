@@ -1,6 +1,7 @@
 import threading
 import structlog
 from flask import request, jsonify
+from .client_ip import client_ip
 from pyrate_limiter import BucketFactory, Duration, InMemoryBucket, Limiter, Rate, RateItem
 
 logger = structlog.get_logger(__name__)
@@ -99,7 +100,7 @@ def rate_limit_key(req):
     # the route template (/api/flowers/<int:flower_id>), not the path: otherwise every id
     # would get its own bucket and walking /api/flowers/1, /2, /3... would never be limited
     route = req.url_rule.rule if req.url_rule else "unmatched"
-    return f"{req.remote_addr}:{route}"
+    return f"{client_ip(req)}:{route}"
 
 
 def register_rate_limiting(app):
@@ -123,5 +124,5 @@ def register_rate_limiting(app):
             logger.error("rate_limiter_failed", error=str(e))
             return
         if not allowed:
-            logger.warning("rate_limit_exceeded", client_ip=request.remote_addr, path=request.path)
+            logger.warning("rate_limit_exceeded", client_ip=client_ip(request), path=request.path)
             return jsonify(error="Too Many Requests"), 429

@@ -5,6 +5,7 @@ from prometheus_client import generate_latest, CONTENT_TYPE_LATEST, REGISTRY, Co
 from prometheus_client.core import GaugeMetricFamily
 from sqlalchemy import text
 from . import db
+from .client_ip import client_ip
 from .background import kafka_producer, kafka_consumer
 from .repositories import flower_repository, description_repository
 
@@ -118,7 +119,7 @@ def _metrics_api_key_valid():
 @monitoring_blueprint.route('/metrics')
 def metrics():
     if not _metrics_api_key_valid():
-        logger.warning("metrics_unauthorized", client_ip=request.remote_addr)
+        logger.warning("metrics_unauthorized", client_ip=client_ip(request))
         return jsonify(error='unauthorized'), 401
     if os.environ.get('PROMETHEUS_MULTIPROC_DIR'):
         registry = CollectorRegistry()

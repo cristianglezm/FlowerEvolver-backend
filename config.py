@@ -27,6 +27,9 @@ class Config(object):
     REDIS_ENABLED = _bool_env('REDIS_ENABLED', default=False)
     REDIS_URL = os.getenv('REDIS_URL', default='redis://localhost:6379')
 
+    # header that holds the client address behind a proxy (X-Real-IP), see app/client_ip.py. Empty: remote_addr
+    CLIENT_IP_HEADER = os.getenv('CLIENT_IP_HEADER', default='').strip()
+
     RATE_LIMIT_TIMES = int(os.getenv('RATE_LIMIT_TIMES', default=5))
     RATE_LIMIT_SECONDS = int(os.getenv('RATE_LIMIT_SECONDS', default=10))
 

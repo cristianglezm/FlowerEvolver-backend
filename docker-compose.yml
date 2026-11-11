@@ -9,7 +9,7 @@ services:
     container_name: app
     ports:
       - "5000:5000"
-    # cp .env.example .env first (the file is not committed). The values of `environment:` win over it.
+    # cp .env.example .env first
     env_file:
       - .env
     depends_on:
@@ -83,8 +83,8 @@ services:
     image: "redis:7-alpine"
     hostname: redis
     container_name: redis
-    ports:
-      - "6379:6379"
+#    ports:
+#      - "6379:6379"
     networks:
       - internal
 
@@ -92,8 +92,8 @@ services:
     image: oliver006/redis_exporter:v1.76.0-alpine
     hostname: redis_exporter
     container_name: redis_exporter
-    ports:
-      - "9121:9121"
+#    ports:
+#      - "9121:9121"
     environment:
       - REDIS_ADDR=redis:6379
     depends_on:
@@ -106,9 +106,9 @@ services:
     hostname: kafka
     container_name: kafka
     ports:
-      - '9092:9092'
-      - '9093:9093'
-      - '29092:29092'
+#      - '9092:9092'
+#      - '9093:9093'
+#      - '29092:29092'
     environment:
       # KRaft settings
       KAFKA_NODE_ID: 1
@@ -142,7 +142,7 @@ services:
     hostname: kafka_exporter
     container_name: kafka_exporter
     ports:
-      - "9308:9308"
+#      - "9308:9308"
     restart: always
     environment:
       - KAFKA_SERVER=kafka:9092

@@ -10,13 +10,14 @@ TIMES = 3
 REDIS_URL = os.getenv('TEST_REDIS_URL')
 
 
-def make_app(redis_enabled=False):
+def make_app(redis_enabled=False, client_ip_header=''):
     app = Flask(__name__)
     app.config.update(
         RATE_LIMIT_TIMES=TIMES,
         RATE_LIMIT_SECONDS=60,
         REDIS_ENABLED=redis_enabled,
         REDIS_URL=REDIS_URL or 'redis://localhost:6379',
+        CLIENT_IP_HEADER=client_ip_header,
     )
     register_rate_limiting(app)
 
@@ -130,3 +131,50 @@ def test_cors_preflights_do_not_use_up_the_limit():
     for _ in range(TIMES):
         assert client.get('/api/flowers').status_code == 200
     assert client.get('/api/flowers').status_code == 429
+
+
+def get_behind_proxy(client, header, value, ip='10.0.0.1'):
+    return client.get('/api/flowers', headers={header: value} if value is not None else {},
+                      environ_base={'REMOTE_ADDR': ip})
+
+
+def test_behind_a_proxy_each_client_has_its_own_limit():
+    # remote_addr is always the proxy, the clients are told apart by the header the proxy sets
+    client = make_app(client_ip_header='X-Real-IP').test_client()
+    for _ in range(TIMES + 1):
+        get_behind_proxy(client, 'X-Real-IP', '203.0.113.7')
+    assert get_behind_proxy(client, 'X-Real-IP', '203.0.113.7').status_code == 429
+    assert get_behind_proxy(client, 'X-Real-IP', '203.0.113.8').status_code == 200
+
+
+def test_without_the_setting_the_header_is_ignored():
+    client = make_app().test_client()
+    for _ in range(TIMES):
+        assert get_behind_proxy(client, 'X-Real-IP', '203.0.113.7').status_code == 200
+    # a client cannot get a new limit by sending a header
+    assert get_behind_proxy(client, 'X-Real-IP', '203.0.113.8').status_code == 429
+
+
+def test_forwarded_for_uses_the_entry_added_by_the_proxy():
+    client = make_app(client_ip_header='X-Forwarded-For').test_client()
+    for i in range(TIMES + 1):
+        # the first entries are whatever the client sent, only the last one is the proxy's
+        get_behind_proxy(client, 'X-Forwarded-For', f'198.51.100.{i}, 203.0.113.7')
+    assert get_behind_proxy(client, 'X-Forwarded-For', '192.0.2.99, 203.0.113.7').status_code == 429
+
+
+@pytest.mark.parametrize('value', [None, '', 'not-an-ip', '203.0.113.7:8080', '203.0.113.7,'])
+def test_a_missing_or_malformed_header_falls_back_to_remote_addr(value):
+    client = make_app(client_ip_header='X-Real-IP').test_client()
+    for _ in range(TIMES):
+        assert get_behind_proxy(client, 'X-Real-IP', value, ip='10.0.0.1').status_code == 200
+    assert get_behind_proxy(client, 'X-Real-IP', value, ip='10.0.0.1').status_code == 429
+    assert get_behind_proxy(client, 'X-Real-IP', value, ip='10.0.0.2').status_code == 200
+
+
+def test_ipv6_clients_are_supported():
+    client = make_app(client_ip_header='X-Real-IP').test_client()
+    for _ in range(TIMES + 1):
+        get_behind_proxy(client, 'X-Real-IP', '2001:db8::1')
+    assert get_behind_proxy(client, 'X-Real-IP', '2001:db8::1').status_code == 429
+    assert get_behind_proxy(client, 'X-Real-IP', '2001:db8::2').status_code == 200

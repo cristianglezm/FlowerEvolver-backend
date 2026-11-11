@@ -103,6 +103,14 @@ Kafka instance the way this compose file does for convenience.
 run it directly with `python tests/e2e/e2e_test.py` once the stack is up), including waiting for a description
 to come back through the full backend -> Kafka -> describe -> Kafka -> backend round trip.
 
+## Behind a proxy (PythonAnywhere, nginx) ##
+
+The rate limit is per client address. Behind a reverse proxy or a load balancer `remote_addr` is the address of the
+proxy, so every client would share one limit. Set `CLIENT_IP_HEADER` to the header the proxy fills with the client
+address (`X-Real-IP` on PythonAnywhere and with the nginx of the compose stack; with `X-Forwarded-For` the last entry,
+the one the proxy added, is used). It is read only when the setting is not empty, and a missing or malformed value
+falls back to `remote_addr`. Set it only when every request goes through the proxy, see `app/client_ip.py`.
+
 ## Monitoring endpoints ##
 
 * GET /healthz - liveness, always 200 if the process is up.
