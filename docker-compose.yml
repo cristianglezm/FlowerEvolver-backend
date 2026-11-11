@@ -105,7 +105,7 @@ services:
     image: 'apache/kafka:3.7.1'
     hostname: kafka
     container_name: kafka
-    ports:
+#    ports:
 #      - '9092:9092'
 #      - '9093:9093'
 #      - '29092:29092'
@@ -141,7 +141,7 @@ services:
     image: "danielqsj/kafka-exporter:v1.9.0"
     hostname: kafka_exporter
     container_name: kafka_exporter
-    ports:
+#    ports:
 #      - "9308:9308"
     restart: always
     environment:
