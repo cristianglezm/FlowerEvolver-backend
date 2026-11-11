@@ -1,48 +1,35 @@
 # syntax=docker/dockerfile:1
 
-FROM python:3.10-alpine3.19 as builder
-WORKDIR /app
-RUN apk add --update --no-cache gcc musl-dev libstdc++ xorg-server-dev freeglut-dev libgudev-dev libx11-dev xrandr libxrandr-dev libxcb-dev sfml-dev libc6-compat gcompat \
-              build-base abuild binutils binutils git cmake extra-cmake-modules
-ENV CIP=/app/build
-ENV BIN=/app/bin
-COPY ./tmp /app/tmp
-RUN cd tmp/JsonBox && mkdir build && cd build && \ 
- cmake -DCMAKE_INSTALL_PREFIX="$CIP/JsonBox" -DCMAKE_CXX_FLAGS=-fPIC .. && \
- make -j4 install && cd /app && \
- cd tmp/SPPAR && mkdir build && \ 
- cd build && cmake -DCMAKE_INSTALL_PREFIX="$CIP/SPPAR" .. && \
- make -j4 install && cd /app && \
- cd tmp/EvoAI && \
- mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX="$CIP/EvoAI" \
-      -DJsonBox_ROOT="$CIP/JsonBox" -DCMAKE_CXX_FLAGS=-fPIC .. && \
- make -j4 install && cd /app && \
- cd tmp/EcoSystem && mkdir build && cd build && \
- cmake -DCMAKE_INSTALL_PREFIX="$CIP/EcoSystem" -DEcoSystem_BUILD_TOOLS=TRUE \ 
-      -DEvoAI_LIBRARY="$CIP/EvoAI/lib/libEvoAI-1.so" \ 
-      -DEvoAI_INCLUDE_DIR="$CIP/EvoAI/include" \ 
-      -DJsonBox_ROOT="$CIP/JsonBox" -DSPPAR_ROOT="$CIP/SPPAR" .. && \
- make -j4 FlowerEvolver && cd /app && mkdir /app/bin && \
- cp $CIP/JsonBox/lib/lib* ./bin/ && \
- cp $CIP/EvoAI/lib/lib* ./bin/ && \
- cp /app/tmp/EcoSystem/build/bin/FlowerEvolver ./bin/
+# Stage 1: build a wheel of EVERY dependency. `flowerevolver` (no musl wheels on PyPI) and `mysqlclient`
+# are compiled here, so the compiler never reaches the final image.
+FROM python:3.12-alpine3.24 AS builder
+RUN apk add --no-cache build-base cmake git pkgconf mariadb-connector-c-dev
+COPY requirements.txt /tmp/requirements.txt
+RUN pip wheel --no-cache-dir --wheel-dir /wheels -r /tmp/requirements.txt
 
-# final build with alpine FlowerEvolver binaries.
-FROM python:3.10-alpine3.19 as backend
-RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe
-COPY --chown=fe *.py reset.sh requirements.txt .env entrypoint.sh /app/
-COPY --chown=fe ./app/* /app/app/
+# Stage 2: only the runtime libraries (libmariadb for mysqlclient, libstdc++ for flowerevolver)
+FROM python:3.12-alpine3.24 AS backend
+RUN addgroup -S fe && adduser -H -S -u 101 fe -G fe && \
+    apk add --no-cache mariadb-connector-c libstdc++
+# the wheels are mounted, not copied: they are not stored in any layer of the final image
+RUN --mount=type=bind,from=builder,source=/wheels,target=/wheels \
+    --mount=type=bind,source=requirements.txt,target=/tmp/requirements.txt \
+    pip install --no-cache-dir --no-index --find-links /wheels -r /tmp/requirements.txt
+# no .env in the image: pass the settings with `--env-file` / `environment:` (see .env.example)
+COPY --chown=fe *.py /app/
+COPY --chown=fe .devops/reset.sh .devops/entrypoint.sh /app/
+COPY --chown=fe ./app /app/app/
 COPY --chown=fe ./generated /app/generated/
-COPY --chown=fe --from=builder /app/bin/* /app/bin/
+# the schema history, applied by `flask db upgrade` in reset.sh
+COPY --chown=fe ./migrations /app/migrations/
 WORKDIR /app
-RUN chmod +x bin/* ./entrypoint.sh && mv bin/lib* /usr/lib && \
-     apk add --update --no-cache gcc musl-dev mariadb-connector-c-dev libstdc++ sfml libc6-compat gcompat mesa-gl && \
-     pip install --no-cache-dir -r requirements.txt && \
-     pip install --no-cache-dir gunicorn
+# the volumes below start with the content and owner of these folders
+RUN chmod +x ./entrypoint.sh && \
+    mkdir -p /app/db /app/instance && \
+    chown fe:fe /app /app/db /app/instance
 USER fe:fe
 # db is for dev mode only.
-VOLUME /app/generated /app/migrations /app/db
-ENV FLASK_APP=FlowerEvolver.py
-RUN sh reset.sh
+VOLUME /app/generated /app/db
+ENV FLASK_APP=manage.py
 EXPOSE 5000/tcp
 ENTRYPOINT ["./entrypoint.sh"]

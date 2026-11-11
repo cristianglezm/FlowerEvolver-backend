@@ -1,0 +1,77 @@
+groups:
+  - name: fe_backend_alerts
+    interval: 30s
+    rules:
+      - alert: BackendDown
+        expr: up{job="flowerevolver-backend"} == 0
+        for: 1m
+        labels:
+          severity: critical
+        annotations:
+          summary: "Backend is down"
+          description: "Prometheus cannot scrape the backend (down, or the METRICS_API_KEY does not match)."
+
+      - alert: HighErrorRate
+        expr: 100 * sum(rate(http_requests_total{job="flowerevolver-backend", status_code=~"5.."}[5m]))
+              / clamp_min(sum(rate(http_requests_total{job="flowerevolver-backend"}[5m])), 0.001) > 5
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "High error rate detected"
+          description: "More than 5% of the backend responses were 5xx for the last 2 minutes."
+
+      - alert: HighLatencyP99
+        expr: histogram_quantile(0.99, sum(rate(http_request_latency_seconds_bucket{job="flowerevolver-backend"}[5m])) by (le)) > 2
+        for: 2m
+        labels:
+          severity: critical
+        annotations:
+          summary: "High latency (p99)"
+          description: "Backend p99 latency is above 2 seconds for the last 2 minutes."
+
+      - alert: FlowerLimitAlmostReached
+        expr: flowers_total{job="flowerevolver-backend"} / flower_limit{job="flowerevolver-backend"} > 0.9
+        for: 1m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Almost no flowers left for today"
+          description: "The database holds more than 90% of FLOWER_LIMIT, new flowers will be refused soon."
+
+  - name: fe_describe_alerts
+    interval: 30s
+    rules:
+      - alert: DescribeDown
+        expr: up{job="flowerevolver-describe"} == 0
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "FlowerEvolver-describe is down"
+          description: "No descriptions are generated while it is down, requests pile up in Kafka."
+
+  - name: kafka_alerts
+    interval: 30s
+    rules:
+      - alert: KafkaConsumerLag
+        expr: sum(kafka_consumergroup_lag) > 1000
+        for: 5m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Kafka consumer lag high"
+          description: "Consumer lag is above 1000 messages."
+
+  - name: redis_alerts
+    interval: 30s
+    rules:
+      - alert: RedisMemoryUsageHigh
+        # redis_memory_max_bytes is 0 when maxmemory is not set: nothing to compare with then
+        expr: redis_memory_used_bytes / (redis_memory_max_bytes > 0) > 0.8
+        for: 2m
+        labels:
+          severity: warning
+        annotations:
+          summary: "Redis memory usage high"
+          description: "Redis memory usage is above 80% of maxmemory."

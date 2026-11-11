@@ -1,9 +1,4 @@
-from flask import Blueprint
 from . import db
-
-flowers_blueprint = Blueprint('flowers', __name__)
-ancestors_blueprint = Blueprint('ancestors', __name__)
-mutations_blueprint = Blueprint('mutations', __name__)
 
 
 class Flower(db.Model):
@@ -17,8 +12,8 @@ class Flower(db.Model):
         return f"id: {self.id}, genome: {self.genome}, image: {self.image}"
 
 
-class Ancestor(db.Model):
-    __tablename__ = 'ancestor'
+class Descendant(db.Model):
+    __tablename__ = 'descendant'
 
     id = db.Column(db.Integer, db.ForeignKey('flower.id'),
                    nullable=False, primary_key=True)
@@ -38,3 +33,13 @@ class Mutation(db.Model):
 
     def __repr__(self):
         return f"id: {self.id}, original: {self.original}"
+
+
+class Descriptions(db.Model):
+    __tablename__ = 'descriptions'
+
+    id = db.Column(db.Integer, db.ForeignKey('flower.id'), nullable=False, primary_key=True)
+    description = db.Column(db.Text, nullable=False)
+
+    def __repr__(self):
+        return f"id: {self.id}, description:{self.description}"

@@ -1,0 +1,5 @@
+services:
+  db:
+    userns_mode: "keep-id:uid=27,gid=27"
+    healthcheck:
+      start_period: 30s
