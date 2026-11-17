@@ -1,0 +1,7 @@
+# tests, linting and the e2e script (tests/e2e/e2e_test.py): pip install -r requirements-dev.txt
+-r requirements.txt
+pytest==9.1.1
+flake8==7.4.1
+autopep8==2.3.2
+requests==2.34.2
+openapi-spec-validator==0.9.0
